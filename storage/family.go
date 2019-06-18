@@ -7,7 +7,7 @@ import (
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
 	"github.com/eleme/lindb/storage/table"
-	meta "github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/storage/version"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
@@ -18,7 +18,7 @@ type Family struct {
 	store         *Store
 	name          string
 	option        FamilyOption
-	familyVersion *meta.FamilyVersion
+	familyVersion *version.FamilyVersion
 
 	mutex sync.RWMutex
 
@@ -36,7 +36,7 @@ func newFamily(store *Store, name string, option FamilyOption) (*Family, error) 
 			return nil, err
 		}
 
-		optionFile := filepath.Join(familyPath, meta.Info())
+		optionFile := filepath.Join(familyPath, version.Info())
 
 		if err := util.EncodeToml(optionFile, option); err != nil {
 			return nil, err
@@ -58,7 +58,7 @@ func newFamily(store *Store, name string, option FamilyOption) (*Family, error) 
 // openFamily opens exist family
 func openFamily(store *Store, name string) (*Family, error) {
 	log := logger.GetLogger()
-	optionFile := filepath.Join(store.option.Path, name, meta.Info())
+	optionFile := filepath.Join(store.option.Path, name, version.Info())
 	option := &FamilyOption{}
 
 	if _, err := toml.DecodeFile(optionFile, option); err != nil {
@@ -81,7 +81,7 @@ func openFamily(store *Store, name string) (*Family, error) {
 func (f *Family) NewTableBuilder() table.Builder {
 	fileNumber := f.store.versions.NextFileNumber()
 
-	fileName := filepath.Join(f.store.option.Path, f.name, meta.Table(fileNumber))
+	fileName := filepath.Join(f.store.option.Path, f.name, version.Table(fileNumber))
 
 	f.logger.Info(fileName)
 
@@ -90,7 +90,7 @@ func (f *Family) NewTableBuilder() table.Builder {
 
 // CommitEditLog peresists eidt logs into mamanifest file
 // returns ture commit successfully, else failure
-func (f *Family) CommitEditLog(editLog *meta.EditLog) bool {
+func (f *Family) CommitEditLog(editLog *version.EditLog) bool {
 	if err := f.store.versions.Commit(f.name, editLog); err != nil {
 		f.logger.Error("commit edit log error:", zap.String("family", f.name), zap.Error(err))
 		return false

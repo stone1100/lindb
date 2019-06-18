@@ -1,4 +1,4 @@
-package meta
+package version
 
 import (
 	"fmt"
@@ -41,11 +41,28 @@ func NewVersionSet(storePath string) *VersionSet {
 
 // Recover metadata from manifest file
 func (vs *VersionSet) Recover() error {
-	if err := vs.initializeIfNeeded(); err != nil {
+	new, err := vs.initializeIfNeeded()
+	if err != nil {
 		return err
 	}
-	//TODO do recover log
+	if !new {
+		vs.logger.Info("recover version set data from journal file", zap.String("store", vs.storePath))
+		//TODO do recover log
+		// do recover logic, read journal wal record and recover it
+
+	}
 	return nil
+}
+
+// Destory closes version set, release resource, such as journal writer etc.
+func (vs *VersionSet) Destory() {
+	vs.mutex.Unlock()
+	defer vs.mutex.Unlock()
+
+	// close manifest journal writer if it exist
+	if vs.manifest != nil {
+		vs.manifest.Close()
+	}
 }
 
 // NextFileNumber generates next file number
@@ -71,7 +88,7 @@ func (vs *VersionSet) Commit(family string, editLog *EditLog) error {
 	// add next file number init edit log for each delta edit log
 	editLog.Add(NewNextFileNumber(vs.nextFileNumber))
 
-	v, err := editLog.bytes()
+	v, err := editLog.marshal()
 	if err != nil {
 		return fmt.Errorf("encode edit log error:%s", err)
 	}
@@ -89,7 +106,7 @@ func (vs *VersionSet) Commit(family string, editLog *EditLog) error {
 	familyVersion.appendVersion(newVersion)
 
 	//TODO add detail edit log data
-	vs.logger.Info("log and apply new version edit")
+	vs.logger.Info("log and apply new version edit", zap.String("store", vs.storePath))
 	return nil
 }
 
@@ -98,7 +115,7 @@ func (vs *VersionSet) Commit(family string, editLog *EditLog) error {
 func (vs *VersionSet) CreateFamilyVersion(family string) *FamilyVersion {
 	var familyVersion = vs.GetFamilyVersion(family)
 	if familyVersion != nil {
-		vs.logger.Warn("family version exist, use it.", zap.String("path", vs.storePath), zap.String("family", family))
+		vs.logger.Warn("family version exist, use it.", zap.String("store", vs.storePath), zap.String("family", family))
 		return familyVersion
 	}
 	familyVersion = newFamilyVersion(vs)
@@ -120,25 +137,27 @@ func (vs *VersionSet) GetFamilyVersion(family string) *FamilyVersion {
 }
 
 // initializeIfNeeded, initialize if version file not exists
-func (vs *VersionSet) initializeIfNeeded() error {
+// return true version set data ont exist, else has old data
+func (vs *VersionSet) initializeIfNeeded() (bool, error) {
 	if !util.Exist(filepath.Join(vs.storePath, current())) {
-		vs.logger.Info("version set's current file not exist, initialze it", zap.String("path", vs.storePath))
+		vs.logger.Info("version set's current file not exist, initialze it", zap.String("store", vs.storePath))
 		manifestFileName := manifestFileName(vs.manifestFileNumber) // manifest file name
 
 		if err := vs.setCurrent(manifestFileName); err != nil {
-			return err
+			return true, err
 		}
 
 		manifest := filepath.Join(vs.storePath, manifestFileName) // manifest file path
 
 		writer, err := journal.NewWriter(manifest)
 		if err != nil {
-			return err
+			return true, err
 		}
 
 		vs.manifest = writer
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 // newVersionID generates new version id

@@ -1,4 +1,4 @@
-package meta
+package version
 
 import (
 	"sync/atomic"
@@ -11,15 +11,19 @@ type Version struct {
 
 	ref int32 // current version ref count for using
 
-	levels []level // each level sst files exclude level0
+	levels []*level // each level sst files exclude level0
 }
 
 // newVersion new Version instance
 func newVersion(id int64, fv *FamilyVersion) *Version {
-	return &Version{
+	v := &Version{
 		id: id,
 		fv: fv,
 	}
+	//TODO set num of level????
+	v.levels = append(v.levels, newLevel())
+	v.levels = append(v.levels, newLevel())
+	return v
 }
 
 // Release decrements version ref count,
@@ -29,6 +33,15 @@ func (v *Version) Release() {
 	if val == 0 {
 		v.fv.removeVersion(v)
 	}
+}
+
+// GetAllFiles returns all ative files of each level
+func (v *Version) GetAllFiles() []FileMeta {
+	var files []FileMeta
+	for _, value := range v.levels {
+		files = append(files, value.getFiles()...)
+	}
+	return files
 }
 
 // retain increments version ref count

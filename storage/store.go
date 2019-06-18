@@ -6,7 +6,7 @@ import (
 
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
-	meta "github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/storage/version"
 
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ type Store struct {
 	name     string
 	option   StoreOption
 	lock     *Lock // file lock make sure store only been open once instance
-	versions *meta.VersionSet
+	versions *version.VersionSet
 	families map[string]*Family
 
 	mutex sync.RWMutex
@@ -32,7 +32,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	}
 
 	// file lock, only allow open by a instance
-	lock := NewLock(filepath.Join(option.Path, meta.Lock))
+	lock := NewLock(filepath.Join(option.Path, version.Lock))
 	err := lock.Lock()
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	}
 
 	// init and recover version set
-	vs := meta.NewVersionSet(store.option.Path)
+	vs := version.NewVersionSet(store.option.Path)
 	err = vs.Recover()
 	if err != nil {
 		return nil, err

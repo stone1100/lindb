@@ -3,48 +3,31 @@ package storage
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Lock(t *testing.T) {
 	var lock = NewLock("t.lock")
 	var err = lock.Lock()
-	if nil != err {
-		t.Error(err)
-		return
-	}
+	assert.Nil(t, err, "lock error")
 
 	err = lock.Lock()
-	if nil == err {
-		t.Errorf("can't lock locked file again")
-		return
-	}
+	assert.NotNil(t, err, "cannot lock again for locked file")
 
 	err = lock.Unlock()
-	if nil != err {
-		t.Error(err)
-		return
-	}
+	assert.Nil(t, err, "unlock error")
 
 	lock = NewLock("t.lock")
 	err = lock.Lock()
-	if nil != err {
-		t.Error(err)
-		return
-	}
+	assert.Nil(t, err, "lock error")
 
 	lock.Unlock()
 
 	fileInfo, _ := os.Stat("t.lock")
-
-	if nil != fileInfo {
-		t.Errorf("lock file exist")
-		return
-	}
+	assert.Nil(t, fileInfo, "lock file exist")
 
 	lock = NewLock("/tmp/not_dir/t.lock")
 	err = lock.Lock()
-	if nil == err {
-		t.Errorf("fail: create file succuess")
-		return
-	}
+	assert.NotNil(t, err, "cannot lock not exist file")
 }

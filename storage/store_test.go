@@ -2,37 +2,26 @@ package storage
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Create_Family(t *testing.T) {
 	option := StoreOption{Path: "../test_data"}
 	var kv, err = NewStore("test_kv", option)
 	defer kv.Close()
-	if nil != err {
-		t.Error(err)
-		return
-	}
-	_, err = kv.CreateFamily("f", FamilyOption{})
-	if nil != err {
-		t.Error(err)
-		return
-	}
+	assert.Nil(t, err, "cannot create kv store")
 
-	var _, ok = kv.GetFamily("f")
-	if !ok {
-		t.Errorf("can't get family")
-		return
-	}
+	f1, err2 := kv.CreateFamily("f", FamilyOption{})
+	assert.Nil(t, err2, "cannot create family")
+
+	var f2, ok = kv.GetFamily("f")
+	assert.True(t, ok, "can't get family")
+	assert.Equal(t, f1, f2, "family not same for same name")
 
 	_, ok = kv.GetFamily("f1")
-	if ok {
-		t.Errorf("fail:get no exist family")
-		return
-	}
+	assert.False(t, ok, "get not exist family")
 
 	_, e := NewStore("test_kv", option)
-	if e == nil {
-		t.Errorf("re-open not allow")
-		return
-	}
+	assert.NotNil(t, e, "store re-open not allow")
 }

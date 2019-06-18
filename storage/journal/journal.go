@@ -45,6 +45,11 @@ func (w *Writer) Write(v []byte) error {
 	return nil
 }
 
+// Close closes file writer
+func (w *Writer) Close() error {
+	return nil
+}
+
 func (r *Reader) Next() (bool, error) {
 
 	return true, nil

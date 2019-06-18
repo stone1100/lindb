@@ -96,6 +96,16 @@ func (b *Binary) ReadUvarint64() uint64 {
 	return v
 }
 
+// ReadBytes reads n len bytes, use buf.Next()
+func (b *Binary) ReadBytes(n int) []byte {
+	return b.buf.Next(n)
+}
+
+// Empty reports whether the unread portion of the buffer is empty.
+func (b *Binary) Empty() bool {
+	return b.buf.Len() <= 0
+}
+
 // Error return binary err
 func (b *Binary) Error() error {
 	return b.err

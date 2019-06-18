@@ -1,6 +1,10 @@
-package meta
+package version
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func Test_File_Level(t *testing.T) {
 	level := newLevel()
@@ -11,10 +15,7 @@ func Test_File_Level(t *testing.T) {
 
 	var files = level.getFiles()
 
-	if len(files) != 1 {
-		t.Errorf("add file wrong")
-		return
-	}
+	assert.Equal(t, 1, len(files), "add file wrong")
 
 	//add file
 	level.addFile(*NewFileMeta(2, 1, 10, 1024))
@@ -24,10 +25,7 @@ func Test_File_Level(t *testing.T) {
 	level.deleteFile(2)
 
 	files = level.getFiles()
-	if len(files) != 2 {
-		t.Errorf("delete file wrong")
-		return
-	}
+	assert.Equal(t, 2, len(files), "dlete file wrong")
 }
 
 func Test_Add_Files(t *testing.T) {
@@ -37,8 +35,5 @@ func Test_Add_Files(t *testing.T) {
 
 	var files = level.getFiles()
 
-	if len(files) != 3 {
-		t.Errorf("add files wrong")
-		return
-	}
+	assert.Equal(t, 3, len(files), "add files wrong")
 }

@@ -1,4 +1,4 @@
-package meta
+package version
 
 // FileMeta is the metadata for sst file
 type FileMeta struct {

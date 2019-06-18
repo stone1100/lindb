@@ -3,18 +3,18 @@ package storage
 import (
 	"sync/atomic"
 
-	meta "github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/storage/version"
 )
 
 // Snapshot current family metadata, for reading data,
 // snaphost instance must close after unuse
 type Snapshot struct {
-	version *meta.Version
+	version *version.Version
 	closed  int32
 }
 
 // newSnapshot new snapshot instance
-func newSnapshot(version *meta.Version) *Snapshot {
+func newSnapshot(version *version.Version) *Snapshot {
 	return &Snapshot{
 		version: version,
 	}
