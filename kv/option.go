@@ -1,4 +1,4 @@
-package storage
+package kv 
 
 // FamilyOption defines config items for family level
 type FamilyOption struct {

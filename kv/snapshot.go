@@ -1,9 +1,9 @@
-package storage
+package kv 
 
 import (
 	"sync/atomic"
 
-	"github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/kv/version"
 )
 
 // Snapshot current family metadata, for reading data,

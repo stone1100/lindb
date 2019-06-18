@@ -1,4 +1,4 @@
-package storage
+package kv
 
 import (
 	"path/filepath"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
-	"github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/kv/version"
 
 	"go.uber.org/zap"
 )

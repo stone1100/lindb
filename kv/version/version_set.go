@@ -9,7 +9,7 @@ import (
 
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
-	"github.com/eleme/lindb/storage/journal"
+	"github.com/eleme/lindb/kv/journal"
 	"go.uber.org/zap"
 )
 

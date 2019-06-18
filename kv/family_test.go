@@ -1,9 +1,9 @@
-package storage
+package kv
 
 import (
 	"testing"
 
-	"github.com/eleme/lindb/storage/version"
+	"github.com/eleme/lindb/kv/version"
 	"github.com/stretchr/testify/assert"
 )
 
