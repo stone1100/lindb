@@ -11,16 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// Store is kv store, support column family, but differnt other LSM implements.
+// current implement not include memory table write logic.
 type Store struct {
 	name     string
-	lock     *Lock
 	option   StoreOption
+	lock     *Lock // file lock make sure store only been open once instance
 	versions *meta.VersionSet
 	families map[string]*Family
-	mutex    sync.Mutex
-	logger   *zap.Logger
+
+	mutex sync.RWMutex
+
+	logger *zap.Logger
 }
 
+// NewStore new store instance, need recover data if store existent
 func NewStore(name string, option StoreOption) (*Store, error) {
 	if err := util.MkDirIfNotExist(option.Path); err != nil {
 		return nil, err
@@ -64,6 +69,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	return store, nil
 }
 
+// CreateFamily create/load column family.
 func (s *Store) CreateFamily(familyName string, option FamilyOption) (*Family, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -75,10 +81,11 @@ func (s *Store) CreateFamily(familyName string, option FamilyOption) (*Family, e
 		var err error
 		if !util.Exist(familyPath) {
 			// create new family
-			family, err = NewFamily(s, familyName, option)
+			option.Name = familyName
+			family, err = newFamily(s, familyName, option)
 		} else {
 			// open exist family
-			family, err = OpenFamily(s, familyName)
+			family, err = openFamily(s, familyName)
 		}
 
 		if err != nil {
@@ -90,13 +97,15 @@ func (s *Store) CreateFamily(familyName string, option FamilyOption) (*Family, e
 	return family, nil
 }
 
+// GetFamily gets family based on name, if not exist return nil
 func (s *Store) GetFamily(familyName string) (*Family, bool) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	family, ok := s.families[familyName]
+	s.mutex.Unlock()
 	return family, ok
 }
 
+// Close closes store, then release some resoure
 func (s *Store) Close() error {
 	return s.lock.Unlock()
 }

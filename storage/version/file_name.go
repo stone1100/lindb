@@ -2,13 +2,10 @@ package meta
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 )
 
 const sstSuffix = "sst"
 const tmpSuffix = "tmp"
-const current = "CURRENT"
 
 //const options = "OPTIONS"
 const Lock = "LOCK"
@@ -23,19 +20,19 @@ const (
 	TypeJournal
 	TypeTable
 	TypeTemp
-	TypeStoreInfo
-	TypeFamilyInfo
+	TypeInfo
 
-	TypeAll = TypeManifest | TypeJournal | TypeTable | TypeTemp | TypeStoreInfo | TypeFamilyInfo
+	TypeAll = TypeManifest | TypeJournal | TypeTable | TypeTemp | TypeInfo
 )
 
+// FileDesc define file type and file number
 type FileDesc struct {
 	FileType   string
 	FileNumber int64
 }
 
-// Get current file name for saving manifest file name
-func Current() string {
+// current return current file name for saving manifest file name
+func current() string {
 	return "CURRENT"
 }
 
@@ -44,20 +41,9 @@ func Table(fileNumber int64) string {
 	return fmt.Sprintf("%06d.%s", fileNumber, sstSuffix)
 }
 
+// Info file for store/family option
 func Info() string {
 	return "info"
-}
-
-func SetCurrentFile(manifestFileNumber int64) error {
-	manifest := manifestFileName(manifestFileNumber)
-	tmp := fmt.Sprintf("%s.%s", current, tmpSuffix)
-	if err := ioutil.WriteFile(tmp, []byte(manifest), 0666); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, current); err != nil {
-		return err
-	}
-	return nil
 }
 
 func manifestFileName(fileNumber int64) string {

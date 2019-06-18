@@ -13,16 +13,20 @@ import (
 	"go.uber.org/zap"
 )
 
+// Family implement column family for data isolation each family
 type Family struct {
 	store         *Store
 	name          string
 	option        FamilyOption
 	familyVersion *meta.FamilyVersion
-	mutex         sync.Mutex
-	logger        *zap.Logger
+
+	mutex sync.RWMutex
+
+	logger *zap.Logger
 }
 
-func NewFamily(store *Store, name string, option FamilyOption) (*Family, error) {
+// newFamily creates family if it exist
+func newFamily(store *Store, name string, option FamilyOption) (*Family, error) {
 	log := logger.GetLogger()
 
 	familyPath := filepath.Join(store.option.Path, name)
@@ -43,7 +47,7 @@ func NewFamily(store *Store, name string, option FamilyOption) (*Family, error) 
 		store:         store,
 		name:          name,
 		option:        option,
-		familyVersion: meta.NewFamilyVersion(),
+		familyVersion: store.versions.CreateFamilyVersion(name),
 		logger:        log,
 	}
 
@@ -51,7 +55,8 @@ func NewFamily(store *Store, name string, option FamilyOption) (*Family, error) 
 	return f, nil
 }
 
-func OpenFamily(store *Store, name string) (*Family, error) {
+// openFamily opens exist family
+func openFamily(store *Store, name string) (*Family, error) {
 	log := logger.GetLogger()
 	optionFile := filepath.Join(store.option.Path, name, meta.Info())
 	option := &FamilyOption{}
@@ -64,7 +69,7 @@ func OpenFamily(store *Store, name string) (*Family, error) {
 		store:         store,
 		name:          name,
 		option:        *option,
-		familyVersion: meta.NewFamilyVersion(),
+		familyVersion: store.versions.CreateFamilyVersion(name),
 		logger:        log,
 	}
 
@@ -72,6 +77,7 @@ func OpenFamily(store *Store, name string) (*Family, error) {
 	return f, nil
 }
 
+// NewTableBuilder create table builder instance for storing kv data
 func (f *Family) NewTableBuilder() table.Builder {
 	fileNumber := f.store.versions.NextFileNumber()
 
@@ -82,18 +88,20 @@ func (f *Family) NewTableBuilder() table.Builder {
 	return nil
 }
 
-func (f *Family) CommitTable(fileMeta FileMeta) {
-
+// CommitEditLog peresists eidt logs into mamanifest file
+// returns ture commit successfully, else failure
+func (f *Family) CommitEditLog(editLog *meta.EditLog) bool {
+	if err := f.store.versions.Commit(f.name, editLog); err != nil {
+		f.logger.Error("commit edit log error:", zap.String("family", f.name), zap.Error(err))
+		return false
+	}
+	return true
 }
 
-// Get snapshot for current version, includes sst files
+// GetSnapshot returns current version, includes sst files
 func (f *Family) GetSnapshot() *Snapshot {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
 
 	current := f.familyVersion.GetCurrent()
-	// inc ref of version
-	current.Retain()
 
 	return newSnapshot(current)
 }
@@ -102,8 +110,8 @@ func (f *Family) GetSnapshot() *Snapshot {
 func (f *Family) deleteObsoleteFiles() {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
+	//make a set of all of the live files
 	/*
-			//make a set of all of the live files
 		Set<Long> live = newHashSet();
 		live.addAll(this.getTableFiles());
 

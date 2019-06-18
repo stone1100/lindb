@@ -1,7 +1,7 @@
 .idea/
 test_data
 bin/
-
+.vscode/
 
 ## Go
 # Binaries for programs and plugins
