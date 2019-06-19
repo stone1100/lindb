@@ -6,8 +6,9 @@ import (
 
 // Version is snapshot for current storage metadata includes levels/sst files
 type Version struct {
-	id int64 // unique id in kv store level
-	fv *FamilyVersion
+	id          int64 // unique id in kv store level
+	numOfLevels int   // num of levels
+	fv          *FamilyVersion
 
 	ref int32 // current version ref count for using
 
@@ -16,13 +17,19 @@ type Version struct {
 
 // newVersion new Version instance
 func newVersion(id int64, fv *FamilyVersion) *Version {
-	v := &Version{
-		id: id,
-		fv: fv,
+	numOfLevel := fv.versionSet.numOfLevels
+	if numOfLevel <= 0 {
+		panic("num of levels cannot be <=0")
 	}
-	//TODO set num of level????
-	v.levels = append(v.levels, newLevel())
-	v.levels = append(v.levels, newLevel())
+	v := &Version{
+		id:          id,
+		fv:          fv,
+		numOfLevels: numOfLevel,
+	}
+	v.levels = make([]*level, numOfLevel)
+	for i := 0; i < numOfLevel; i++ {
+		v.levels[i] = newLevel()
+	}
 	return v
 }
 
@@ -31,12 +38,13 @@ func newVersion(id int64, fv *FamilyVersion) *Version {
 func (v *Version) Release() {
 	val := atomic.AddInt32(&v.ref, -1)
 	if val == 0 {
+		// remove version from family active versions
 		v.fv.removeVersion(v)
 	}
 }
 
-// GetAllFiles returns all ative files of each level
-func (v *Version) GetAllFiles() []FileMeta {
+// getAllFilesetAllFiles returns all ative files of each level
+func (v *Version) getAllFiles() []FileMeta {
 	var files []FileMeta
 	for _, value := range v.levels {
 		files = append(files, value.getFiles()...)
@@ -51,10 +59,10 @@ func (v *Version) retain() {
 
 // cloneVersion builds new version based on current version
 func (v *Version) cloneVersion() *Version {
-	newVersion := newVersion(v.fv.versionSet.versionID, v.fv)
+	newVersion := newVersion(v.fv.versionSet.newVersionID(), v.fv)
 	for level, value := range v.levels {
 		for _, file := range value.files {
-			v.addFile(level, file)
+			newVersion.addFile(level, file)
 		}
 	}
 	return newVersion

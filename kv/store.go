@@ -4,14 +4,14 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/eleme/lindb/kv/version"
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
-	"github.com/eleme/lindb/kv/version"
 
 	"go.uber.org/zap"
 )
 
-// Store is kv store, support column family, but differnt other LSM implements.
+// Store is kv store, support column family, but different other LSM implements.
 // current implement not include memory table write logic.
 type Store struct {
 	name     string
@@ -59,7 +59,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	}
 
 	// init and recover version set
-	vs := version.NewVersionSet(store.option.Path)
+	vs := version.NewVersionSet(store.option.Path, store.option.Levels)
 	err = vs.Recover()
 	if err != nil {
 		return nil, err

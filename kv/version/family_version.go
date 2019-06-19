@@ -18,22 +18,39 @@ func newFamilyVersion(versionSet *VersionSet) *FamilyVersion {
 		versionSet:     versionSet,
 		activeVersions: make(map[int64]*Version),
 	}
-
 	// create new version for current mutable version
-	fv.createVersion()
-
+	current := newVersion(fv.versionSet.newVersionID(), fv)
+	fv.activeVersions[current.id] = current
+	fv.current = current
 	return fv
 }
 
 // GetCurrent returns current mutable version
 func (fv *FamilyVersion) GetCurrent() *Version {
 	fv.mutex.RLock()
-	defer fv.mutex.Unlock()
-
+	defer fv.mutex.RUnlock()
 	// inc ref count of version
 	fv.current.retain()
-
 	return fv.current
+}
+
+// GetAllFiles returns all files based on all active versions
+func (fv *FamilyVersion) GetAllFiles() []FileMeta {
+	var files []FileMeta
+	var fileNumbers = make(map[int64]int64)
+	for _, version := range fv.activeVersions {
+		versionFiles := version.getAllFiles()
+		for _, file := range versionFiles {
+			fileNumber := file.fileNumber
+			// remove duplicate file in diff versions
+			_, ok := fileNumbers[fileNumber]
+			if !ok {
+				files = append(files, file)
+				fileNumbers[fileNumber] = fileNumber
+			}
+		}
+	}
+	return files
 }
 
 // removeVersion removes version from active versions
@@ -43,23 +60,14 @@ func (fv *FamilyVersion) removeVersion(v *Version) {
 	fv.mutex.Unlock()
 }
 
-//createVersion creates new version
-func (fv *FamilyVersion) createVersion() {
-	fv.mutex.Lock()
-	current := newVersion(fv.versionSet.newVersionID(), fv)
-	fv.activeVersions[current.id] = current
-	fv.current = current
-	fv.mutex.Unlock()
-}
-
 // appendVersion swap famliy's current version, then release previous version
 func (fv *FamilyVersion) appendVersion(v *Version) {
-	pervious := fv.current
+	previous := fv.current
 
 	fv.activeVersions[v.id] = v
 	fv.current = v
 
-	if pervious != nil {
-		pervious.Release()
+	if previous != nil {
+		previous.Release()
 	}
 }

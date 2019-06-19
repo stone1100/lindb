@@ -4,10 +4,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/eleme/lindb/pkg/logger"
-	"github.com/eleme/lindb/pkg/util"
 	"github.com/eleme/lindb/kv/table"
 	"github.com/eleme/lindb/kv/version"
+	"github.com/eleme/lindb/pkg/logger"
+	"github.com/eleme/lindb/pkg/util"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
@@ -91,7 +91,7 @@ func (f *Family) NewTableBuilder() table.Builder {
 // CommitEditLog peresists eidt logs into mamanifest file
 // returns ture commit successfully, else failure
 func (f *Family) CommitEditLog(editLog *version.EditLog) bool {
-	if err := f.store.versions.Commit(f.name, editLog); err != nil {
+	if err := f.store.versions.CommitFamilyEditLog(f.name, editLog); err != nil {
 		f.logger.Error("commit edit log error:", zap.String("family", f.name), zap.Error(err))
 		return false
 	}

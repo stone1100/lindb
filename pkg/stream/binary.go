@@ -28,10 +28,10 @@ func BinaryReader(v []byte) *Binary {
 }
 
 // PutBytes encodes bytes into buf
-func (b *Binary) PutBytes(bytes []byte) {
-	len := len(bytes)
+func (b *Binary) PutBytes(v []byte) {
+	len := len(v)
 
-	n, err := b.buf.Write(bytes[:])
+	n, err := b.buf.Write(v)
 	b.err = err
 	if n != len {
 		b.err = fmt.Errorf("write len not eqauls value's len")

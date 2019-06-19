@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/stream"
-	"go.uber.org/zap"
 )
 
 // EditLog includes all metadata edit log
@@ -47,7 +45,6 @@ func (el *EditLog) marshal() ([]byte, error) {
 
 // unmarshal create an edit log from its seriealized in buf
 func (el *EditLog) unmarshal(buf []byte) error {
-	log := logger.GetLogger()
 	stream := stream.BinaryReader(buf)
 	// read num of logs
 	count := stream.ReadUvarint64()
@@ -56,12 +53,14 @@ func (el *EditLog) unmarshal(buf []byte) error {
 		logType := stream.ReadInt32()
 		fn, ok := newLogFuncMap[logType]
 		if !ok {
-			log.Info("cannot get log type new func.", zap.Any("LogType", logType))
+			return fmt.Errorf("cannot get log type new func, type is:[%d]", logType)
 		}
 		l := fn()
 		len := int(stream.ReadUvarint32())
 		logData := stream.ReadBytes(len)
-		l.Decode(logData)
+		if err := l.Decode(logData); err != nil {
+			return fmt.Errorf("unmarshal log data error, type is:[%d],error:%s", logType, err)
+		}
 		el.Add(l)
 	}
 	return stream.Error()

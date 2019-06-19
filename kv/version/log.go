@@ -39,8 +39,11 @@ func RegisterLogType(logType int32, fn NewLogFunc) {
 
 // Log metadata edit log
 type Log interface {
+	// Encode write log from binary, if error return err
 	Encode() ([]byte, error)
+	// Decode reads log from binary, if error return err
 	Decode(v []byte) error
+	// Apply edit log to version
 	Apply(version *Version)
 }
 

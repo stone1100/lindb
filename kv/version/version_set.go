@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
+	"github.com/eleme/lindb/kv/journal"
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
-	"github.com/eleme/lindb/kv/journal"
+
 	"go.uber.org/zap"
 )
 
@@ -21,6 +23,8 @@ type VersionSet struct {
 	familyVersions     map[string]*FamilyVersion
 	versionID          int64 // unique in for increasing version id
 
+	numOfLevels int // num of levels
+
 	manifest *journal.Writer
 	mutex    sync.RWMutex
 
@@ -28,11 +32,12 @@ type VersionSet struct {
 }
 
 // NewVersionSet new VersionSet instance
-func NewVersionSet(storePath string) *VersionSet {
+func NewVersionSet(storePath string, numOfLevels int) *VersionSet {
 	vs := &VersionSet{
 		manifestFileNumber: 1, // default value for initialize store
 		nextFileNumber:     2, // default value
 		storePath:          storePath,
+		numOfLevels:        numOfLevels,
 		familyVersions:     make(map[string]*FamilyVersion),
 		logger:             logger.GetLogger(),
 	}
@@ -50,12 +55,15 @@ func (vs *VersionSet) Recover() error {
 		//TODO do recover log
 		// do recover logic, read journal wal record and recover it
 
+		if err := vs.initJournal(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// Destory closes version set, release resource, such as journal writer etc.
-func (vs *VersionSet) Destory() {
+// Destroy closes version set, release resource, such as journal writer etc.
+func (vs *VersionSet) Destroy() {
 	vs.mutex.Unlock()
 	defer vs.mutex.Unlock()
 
@@ -67,18 +75,15 @@ func (vs *VersionSet) Destory() {
 
 // NextFileNumber generates next file number
 func (vs *VersionSet) NextFileNumber() int64 {
-	vs.mutex.Lock()
-	nf := vs.nextFileNumber
-	vs.nextFileNumber++
-	vs.mutex.Unlock()
-	return nf
+	nextNumber := atomic.AddInt64(&vs.nextFileNumber, 1)
+	return nextNumber - 1
 }
 
-// Commit peresists edit logs to manifest file, then apply new version to family version
-func (vs *VersionSet) Commit(family string, editLog *EditLog) error {
+// CommitFamilyEditLog peresists edit logs to manifest file, then apply new version to family version
+func (vs *VersionSet) CommitFamilyEditLog(family string, editLog *EditLog) error {
 	// get family version based on family name
 	familyVersion := vs.GetFamilyVersion(family)
-	if familyVersion != nil {
+	if familyVersion == nil {
 		return fmt.Errorf("cannot find family version for name: %s", family)
 	}
 
@@ -140,7 +145,8 @@ func (vs *VersionSet) GetFamilyVersion(family string) *FamilyVersion {
 // return true version set data ont exist, else has old data
 func (vs *VersionSet) initializeIfNeeded() (bool, error) {
 	if !util.Exist(filepath.Join(vs.storePath, current())) {
-		vs.logger.Info("version set's current file not exist, initialze it", zap.String("store", vs.storePath))
+		vs.logger.Info("version set's current file not exist, initialize it", zap.String("store", vs.storePath))
+		//TODO refact
 		manifestFileName := manifestFileName(vs.manifestFileNumber) // manifest file name
 
 		if err := vs.setCurrent(manifestFileName); err != nil {
@@ -160,13 +166,23 @@ func (vs *VersionSet) initializeIfNeeded() (bool, error) {
 	return false, nil
 }
 
+func (vs *VersionSet) initJournal() error {
+	if vs.manifest == nil {
+		manifestFileName := manifestFileName(vs.manifestFileNumber) // manifest file name
+		manifest := filepath.Join(vs.storePath, manifestFileName)   // manifest file path
+		writer, err := journal.NewWriter(manifest)
+		if err != nil {
+			return err
+		}
+		vs.manifest = writer
+	}
+	return nil
+}
+
 // newVersionID generates new version id
 func (vs *VersionSet) newVersionID() int64 {
-	vs.mutex.Lock()
-	versionID := vs.versionID
-	vs.versionID++
-	vs.mutex.Unlock()
-	return versionID
+	newID := atomic.AddInt64(&vs.versionID, 1)
+	return newID - 1
 }
 
 func (vs *VersionSet) setCurrent(manifestFile string) error {

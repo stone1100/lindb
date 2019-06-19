@@ -1,4 +1,4 @@
-package kv 
+package kv
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Lock(t *testing.T) {
+func TestLock(t *testing.T) {
 	var lock = NewLock("t.lock")
 	var err = lock.Lock()
 	assert.Nil(t, err, "lock error")

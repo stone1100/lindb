@@ -1,4 +1,4 @@
-package version 
+package version
 
 import (
 	"testing"
@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_EditLog_Codec(t *testing.T) {
+func TestEditLogCodec(t *testing.T) {
 	editLog := NewEditLog()
-	newFile := &NewFile{level: 1, file: NewFileMeta(12, 1, 100, 2014)}
+	newFile := CreateNewFile(1, NewFileMeta(12, 1, 100, 2014))
 	editLog.Add(newFile)
 	editLog.Add(NewDeleteFile(1, 123))
 
@@ -24,18 +24,22 @@ func Test_EditLog_Codec(t *testing.T) {
 	assert.Equal(t, editLog, editLog2, "edit log not eqauls")
 }
 
-func Test_Apply(t *testing.T) {
+func TestApply(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
+
+	var vs = NewVersionSet(vsTestPath, 2)
+	familyVersion := vs.CreateFamilyVersion("family")
 	editLog := NewEditLog()
 	newFile := &NewFile{level: 1, file: NewFileMeta(12, 1, 100, 2014)}
 	editLog.Add(newFile)
-	version := newVersion(1, nil)
+	version := newVersion(1, familyVersion)
 	editLog.apply(version)
 
-	assert.Equal(t, 1, len(version.GetAllFiles()), "cannot add file into version")
-
+	assert.Equal(t, 1, len(version.getAllFiles()), "cannot add file into version")
 	//delete file
 	editLog2 := NewEditLog()
 	editLog2.Add(NewDeleteFile(1, 12))
 	editLog2.apply(version)
-	assert.Equal(t, 0, len(version.GetAllFiles()), "cannot delete file from version")
+	assert.Equal(t, 0, len(version.getAllFiles()), "cannot delete file from version")
 }

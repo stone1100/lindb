@@ -1,4 +1,4 @@
-package kv 
+package kv
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Create_Family(t *testing.T) {
-	option := StoreOption{Path: "../test_data"}
+func TestCreateFamily(t *testing.T) {
+	option := DefaultStoreOption("../test_data")
 	var kv, err = NewStore("test_kv", option)
 	defer kv.Close()
 	assert.Nil(t, err, "cannot create kv store")

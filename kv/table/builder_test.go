@@ -2,7 +2,7 @@ package table
 
 import "testing"
 
-func Test_BuildStore(t *testing.T) {
+func TestBuildStroeFile(t *testing.T) {
 	var builder, err = NewStoreBuilder("../../test_data/test_kv.sst")
 	defer builder.Close()
 	if err != nil {

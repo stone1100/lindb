@@ -4,28 +4,27 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eleme/lindb/pkg/util"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/eleme/lindb/pkg/util"
 )
 
 var vsTestPath = "../../test_data/test_vs"
 
-func Test_Recover(t *testing.T) {
-	initTest()
-	defer destory()
-
-	var vs = NewVersionSet(vsTestPath)
-
+func TestRecover(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
+	var vs = NewVersionSet(vsTestPath, 2)
 	err := vs.Recover()
 
 	assert.Nil(t, err, "recover edit log error")
 }
 
-func Test_Family(t *testing.T) {
-	initTest()
-	defer destory()
+func TestCreateFamily(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
 
-	var vs = NewVersionSet(vsTestPath)
+	var vs = NewVersionSet(vsTestPath, 2)
 
 	familyVersion := vs.CreateFamilyVersion("family")
 	assert.NotNil(t, familyVersion, "get nil family version")
@@ -36,13 +35,13 @@ func Test_Family(t *testing.T) {
 	assert.Equal(t, familyVersion, familyVersion2, "get diff family version")
 }
 
-func initTest() {
+func initVersionSetTestData() {
 	if err := util.MkDirIfNotExist(vsTestPath); err != nil {
 		fmt.Println("create test path error")
 	}
 }
 
-func destory() {
+func destoryVersionTestData() {
 	if err := util.RemoveDir(vsTestPath); err != nil {
 		fmt.Println("delete test path error")
 	}
