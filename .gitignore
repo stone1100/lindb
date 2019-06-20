@@ -2,6 +2,8 @@
 test_data
 bin/
 .vscode/
+# temp file during testing
+*.test
 
 ## Go
 # Binaries for programs and plugins

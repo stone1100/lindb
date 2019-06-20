@@ -52,3 +52,11 @@ func EncodeToml(fileName string, v interface{}) error {
 	}
 	return nil
 }
+
+// DecodeToml encodes data from file using toml format
+func DecodeToml(fileName string, v interface{}) error {
+	if _, err := toml.DecodeFile(fileName, v); err != nil {
+		return err
+	}
+	return nil
+}

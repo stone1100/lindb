@@ -4,17 +4,25 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/stream"
 )
 
+// StoreFamilyID is store level edit log,
+// actually store family is not actual family just store store level edit log for metadata.
+const StoreFamilyID = 0
+
 // EditLog includes all metadata edit log
 type EditLog struct {
-	logs []Log
+	logs     []Log
+	familyID int
 }
 
 // NewEditLog new EditLog instance
-func NewEditLog() *EditLog {
-	return &EditLog{}
+func NewEditLog(familyID int) *EditLog {
+	return &EditLog{
+		familyID: familyID,
+	}
 }
 
 // Add adds edit log into log list
@@ -22,13 +30,18 @@ func (el *EditLog) Add(log Log) {
 	el.logs = append(el.logs, log)
 }
 
+// IsEmpty returns if has eidt logs
+func (el *EditLog) IsEmpty() bool {
+	return len(el.logs) == 0
+}
+
 // marshal encodes edit log to binary data
 func (el *EditLog) marshal() ([]byte, error) {
 	stream := stream.BinaryWriter()
-
+	// write family id
+	stream.PutInt32(int32(el.familyID))
 	// write num of logs
 	stream.PutUvarint64(uint64(len(el.logs)))
-
 	// write detail log data
 	for _, log := range el.logs {
 		logType := logTypes[reflect.TypeOf(log)]
@@ -46,6 +59,7 @@ func (el *EditLog) marshal() ([]byte, error) {
 // unmarshal create an edit log from its seriealized in buf
 func (el *EditLog) unmarshal(buf []byte) error {
 	stream := stream.BinaryReader(buf)
+	el.familyID = int(stream.ReadInt32())
 	// read num of logs
 	count := stream.ReadUvarint64()
 	// read detail log data
@@ -66,9 +80,27 @@ func (el *EditLog) unmarshal(buf []byte) error {
 	return stream.Error()
 }
 
-// apply edit logs into version metadata
+// apply family edit logs into version metadata
 func (el *EditLog) apply(version *Version) {
 	for _, log := range el.logs {
-		log.Apply(version)
+		log.apply(version)
+
+		if v, ok := log.(StoreLog); ok {
+			// if log is store log, need to apply version set
+			v.applyVersionSet(version.fv.versionSet)
+		}
+	}
+}
+
+// apply store edit logs into version set
+func (el *EditLog) applyVersionSet(versionSet *StoreVersionSet) {
+	l := logger.GetLogger()
+	for _, log := range el.logs {
+		switch v := log.(type) {
+		case StoreLog:
+			v.applyVersionSet(versionSet)
+		default:
+			l.Warn("cannot apply family edit log to version set")
+		}
 	}
 }

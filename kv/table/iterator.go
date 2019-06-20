@@ -1,4 +1,4 @@
-package kv
+package table
 
 // iterator iterates over a store's key/value pairs in key order.
 type iterator interface {

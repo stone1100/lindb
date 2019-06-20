@@ -16,6 +16,10 @@ func init() {
 	RegisterLogType(2, func() Log {
 		return &DeleteFile{}
 	})
+	// register new file number
+	RegisterLogType(3, func() Log {
+		return &NextFileNumber{}
+	})
 }
 
 // NewLogFunc create speic eidt log instance
@@ -37,14 +41,21 @@ func RegisterLogType(logType int32, fn NewLogFunc) {
 	logTypes[reflect.TypeOf(log)] = logType
 }
 
-// Log metadata edit log
+// Log metadata edit log for family level
 type Log interface {
 	// Encode write log from binary, if error return err
 	Encode() ([]byte, error)
 	// Decode reads log from binary, if error return err
 	Decode(v []byte) error
-	// Apply edit log to version
-	Apply(version *Version)
+	// apply edit log to family's current version
+	apply(version *Version)
+}
+
+// StoreLog metadata eidt log store level
+type StoreLog interface {
+	Log
+	// applyVersionSet apply edito to store version set
+	applyVersionSet(versionSet *StoreVersionSet)
 }
 
 // NewFile add new file into metadata
@@ -86,7 +97,7 @@ func (n *NewFile) Decode(v []byte) error {
 }
 
 // Apply new file edit log to version
-func (n *NewFile) Apply(version *Version) {
+func (n *NewFile) apply(version *Version) {
 	version.addFile(int(n.level), *n.file)
 }
 
@@ -125,7 +136,7 @@ func (d *DeleteFile) Decode(v []byte) error {
 }
 
 // Apply removes file from version
-func (d *DeleteFile) Apply(version *Version) {
+func (d *DeleteFile) apply(version *Version) {
 	version.deleteFile(int(d.level), d.fileNumber)
 }
 
@@ -156,6 +167,11 @@ func (n *NextFileNumber) Decode(v []byte) error {
 }
 
 // Apply do nothing for next file number
-func (n *NextFileNumber) Apply(version *Version) {
+func (n *NextFileNumber) apply(version *Version) {
 	// do nothing
+}
+
+//applyVersionSet applys edito to store version set
+func (n *NextFileNumber) applyVersionSet(versionSet *StoreVersionSet) {
+	versionSet.setNextFileNumberWithoutLock(n.fileNumber)
 }

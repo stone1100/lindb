@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
 
-	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 )
 
@@ -25,21 +25,16 @@ type Family struct {
 	logger *zap.Logger
 }
 
-// newFamily creates family if it exist
-func newFamily(store *Store, name string, option FamilyOption) (*Family, error) {
+// newFamily creates new family or open exsit family
+func newFamily(store *Store, option FamilyOption) (*Family, error) {
 	log := logger.GetLogger()
+	name := option.Name
 
 	familyPath := filepath.Join(store.option.Path, name)
 
 	if !util.Exist(familyPath) {
 		if err := util.MkDir(familyPath); err != nil {
-			return nil, err
-		}
-
-		optionFile := filepath.Join(familyPath, version.Info())
-
-		if err := util.EncodeToml(optionFile, option); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("mk family path error:%s", err)
 		}
 	}
 
@@ -47,33 +42,11 @@ func newFamily(store *Store, name string, option FamilyOption) (*Family, error) 
 		store:         store,
 		name:          name,
 		option:        option,
-		familyVersion: store.versions.CreateFamilyVersion(name),
+		familyVersion: store.versions.CreateFamilyVersion(name, option.ID),
 		logger:        log,
 	}
 
-	log.Info("new family success", zap.String("family", name))
-	return f, nil
-}
-
-// openFamily opens exist family
-func openFamily(store *Store, name string) (*Family, error) {
-	log := logger.GetLogger()
-	optionFile := filepath.Join(store.option.Path, name, version.Info())
-	option := &FamilyOption{}
-
-	if _, err := toml.DecodeFile(optionFile, option); err != nil {
-		return nil, err
-	}
-
-	f := &Family{
-		store:         store,
-		name:          name,
-		option:        *option,
-		familyVersion: store.versions.CreateFamilyVersion(name),
-		logger:        log,
-	}
-
-	log.Info("open family success", zap.String("family", name))
+	log.Info("new family success", f.logStoreField(), f.logFamilyField())
 	return f, nil
 }
 
@@ -91,8 +64,12 @@ func (f *Family) NewTableBuilder() table.Builder {
 // CommitEditLog peresists eidt logs into mamanifest file
 // returns ture commit successfully, else failure
 func (f *Family) CommitEditLog(editLog *version.EditLog) bool {
+	if editLog.IsEmpty() {
+		f.logger.Warn("edit log is empty", f.logStoreField(), f.logFamilyField())
+		return true
+	}
 	if err := f.store.versions.CommitFamilyEditLog(f.name, editLog); err != nil {
-		f.logger.Error("commit edit log error:", zap.String("family", f.name), zap.Error(err))
+		f.logger.Error("commit edit log error:", f.logStoreField(), f.logFamilyField(), zap.Error(err))
 		return false
 	}
 	return true
@@ -139,4 +116,14 @@ func (f *Family) deleteObsoleteFiles() {
 	//}
 	//}
 	// */
+}
+
+// logStoreField logging store info
+func (f *Family) logStoreField() zap.Field {
+	return zap.String("store", f.store.option.Path)
+}
+
+// logFamilyField logging family info
+func (f *Family) logFamilyField() zap.Field {
+	return zap.String("family", f.name)
 }

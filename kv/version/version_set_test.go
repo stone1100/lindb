@@ -11,22 +11,69 @@ import (
 
 var vsTestPath = "../../test_data/test_vs"
 
-func TestRecover(t *testing.T) {
+func TestAssign_NextFileNumber(t *testing.T) {
 	initVersionSetTestData()
 	defer destoryVersionTestData()
-	var vs = NewVersionSet(vsTestPath, 2)
-	err := vs.Recover()
 
-	assert.Nil(t, err, "recover edit log error")
+	var vs = NewStoreVersionSet(vsTestPath, 2)
+	assert.Equal(t, int64(2), vs.nextFileNumber, "wrong next file number")
+	assert.Equal(t, int64(2), vs.NextFileNumber(), "assign wrong next file number")
+	assert.Equal(t, int64(3), vs.nextFileNumber, "wrong next file number")
+}
+
+func TestVersionID(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
+
+	var vs = NewStoreVersionSet(vsTestPath, 2)
+	assert.Equal(t, int64(0), vs.versionID, "wrong new version id")
+	assert.Equal(t, int64(0), vs.newVersionID(), "assign wrong version id")
+	assert.Equal(t, int64(1), vs.versionID, "wrong next version id")
+}
+
+func TestCommitFamilyEditLog(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
+
+	var vs = NewStoreVersionSet(vsTestPath, 2)
+	assert.NotNil(t, vs, "cannot create store version")
+	if err := vs.Recover(); err != nil {
+		assert.Error(t, err, "recover error")
+	}
+
+	var err = vs.CommitFamilyEditLog("f", nil)
+	assert.NotNil(t, err, "commit not exist family version")
+
+	familyID := 1
+	vs.CreateFamilyVersion("f", familyID)
+	editLog := NewEditLog(familyID)
+	newFile := CreateNewFile(1, NewFileMeta(12, 1, 100, 2014))
+	editLog.Add(newFile)
+	editLog.Add(NewDeleteFile(1, 123))
+	err = vs.CommitFamilyEditLog("f", editLog)
+	assert.Nil(t, err, "commit family edit log error")
+
+	vs.Destroy()
+
+	vs = NewStoreVersionSet(vsTestPath, 2)
+	vs.CreateFamilyVersion("f", familyID)
+	if err := vs.Recover(); err != nil {
+		assert.Error(t, err, "recover error")
+	}
+	familyVersion := vs.GetFamilyVersion("f")
+	assert.Equal(t, *newFile.file, familyVersion.GetCurrent().getAllFiles()[0], "cannot recover family version data")
+	assert.Equal(t, int64(3), vs.nextFileNumber, "recover file number error")
+
+	vs.Destroy()
 }
 
 func TestCreateFamily(t *testing.T) {
 	initVersionSetTestData()
 	defer destoryVersionTestData()
 
-	var vs = NewVersionSet(vsTestPath, 2)
+	var vs = NewStoreVersionSet(vsTestPath, 2)
 
-	familyVersion := vs.CreateFamilyVersion("family")
+	familyVersion := vs.CreateFamilyVersion("family", 1)
 	assert.NotNil(t, familyVersion, "get nil family version")
 
 	familyVersion2 := vs.GetFamilyVersion("family")

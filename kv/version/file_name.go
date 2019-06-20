@@ -5,7 +5,7 @@ import (
 )
 
 const sstSuffix = "sst"
-const tmpSuffix = "tmp"
+const TmpSuffix = "tmp"
 
 //const options = "OPTIONS"
 const Lock = "LOCK"
@@ -43,7 +43,7 @@ func Table(fileNumber int64) string {
 
 // Info file for store/family option
 func Info() string {
-	return "info"
+	return "INFO"
 }
 
 func manifestFileName(fileNumber int64) string {

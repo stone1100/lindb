@@ -4,7 +4,7 @@ import "sync"
 
 // FamilyVersion maintains family level metadata
 type FamilyVersion struct {
-	versionSet *VersionSet
+	versionSet *StoreVersionSet
 
 	current        *Version           // current mutable version
 	activeVersions map[int64]*Version // all active versions include mutable/immutable versions
@@ -13,7 +13,7 @@ type FamilyVersion struct {
 }
 
 // newFamilyVersion new FamilyVersion instance
-func newFamilyVersion(versionSet *VersionSet) *FamilyVersion {
+func newFamilyVersion(versionSet *StoreVersionSet) *FamilyVersion {
 	fv := &FamilyVersion{
 		versionSet:     versionSet,
 		activeVersions: make(map[int64]*Version),

@@ -9,8 +9,8 @@ import (
 func TestFamilyVersion(t *testing.T) {
 	initVersionSetTestData()
 	defer destoryVersionTestData()
-	var vs = NewVersionSet(vsTestPath, 2)
-	familyVersion := vs.CreateFamilyVersion("f")
+	var vs = NewStoreVersionSet(vsTestPath, 2)
+	familyVersion := vs.CreateFamilyVersion("f", 1)
 
 	assert.Equal(t, 0, len(familyVersion.GetAllFiles()), "file list not empty")
 
