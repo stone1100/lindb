@@ -17,12 +17,12 @@ func TestFamilyVersion(t *testing.T) {
 	version1 := familyVersion.GetCurrent()
 	// add mock version ref
 	version1.retain()
-	file1 := NewFileMeta(12, 1, 100, 2014)
-	version1.addFile(1, *file1)
-	file2 := NewFileMeta(13, 1, 100, 2014)
+	file1 := NewFileMeta(12, 1, 50, 2014)
+	version1.addFile(1, file1)
+	file2 := NewFileMeta(13, 1, 10, 2014)
 	file3 := NewFileMeta(14, 1, 100, 2014)
-	var files []FileMeta
-	files = append(files, *file2, *file3)
+	var files []*FileMeta
+	files = append(files, file2, file3)
 	version1.addFiles(1, files)
 	assert.Equal(t, 3, len(familyVersion.GetAllFiles()), "file list != 3")
 
@@ -32,6 +32,7 @@ func TestFamilyVersion(t *testing.T) {
 	assert.Equal(t, version2, familyVersion.GetCurrent(), "get wrong current version")
 	assert.Equal(t, 3, len(familyVersion.GetAllFiles()), "file list != 3")
 
+	// delete file1
 	version2.deleteFile(1, 12)
 	// can get file from version1
 	assert.Equal(t, 3, len(familyVersion.GetAllFiles()), "file list != 3")
@@ -41,12 +42,17 @@ func TestFamilyVersion(t *testing.T) {
 	// cannot get file from version1
 	assert.Equal(t, 2, len(familyVersion.GetAllFiles()), "file list != 2")
 
-	file4 := NewFileMeta(40, 1, 1, 1024)
+	file4 := NewFileMeta(40, 70, 100, 1024)
 	// add invalid version
-	version1.addFile(1, *file4)
+	version1.addFile(1, file4)
 	assert.Equal(t, 2, len(familyVersion.GetAllFiles()), "file list != 2")
 
 	// add dupliate file
-	version2.addFile(1, *file3)
+	version2.addFile(1, file3)
 	assert.Equal(t, 2, len(familyVersion.GetAllFiles()), "file list != 2")
+	_, findFile1 := familyVersion.FindFiles(70)
+	assert.Equal(t, 1, len(findFile1))
+
+	_, findFile2 := familyVersion.FindFiles(5)
+	assert.Equal(t, 2, len(findFile2))
 }

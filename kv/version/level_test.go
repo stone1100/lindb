@@ -9,17 +9,17 @@ import (
 func Test_File_Level(t *testing.T) {
 	level := newLevel()
 
-	level.addFile(*NewFileMeta(1, 1, 10, 1024))
-	level.addFile(*NewFileMeta(1, 1, 10, 1024))
-	level.addFile(*NewFileMeta(1, 1, 10, 1024))
+	level.addFile(NewFileMeta(1, 1, 10, 1024))
+	level.addFile(NewFileMeta(1, 1, 10, 1024))
+	level.addFile(NewFileMeta(1, 1, 10, 1024))
 
 	var files = level.getFiles()
 
 	assert.Equal(t, 1, len(files), "add file wrong")
 
 	//add file
-	level.addFile(*NewFileMeta(2, 1, 10, 1024))
-	level.addFile(*NewFileMeta(20, 1, 10, 1024))
+	level.addFile(NewFileMeta(2, 1, 10, 1024))
+	level.addFile(NewFileMeta(20, 1, 10, 1024))
 
 	//delete file
 	level.deleteFile(2)
@@ -31,7 +31,7 @@ func Test_File_Level(t *testing.T) {
 func Test_Add_Files(t *testing.T) {
 	level := newLevel()
 
-	level.addFiles(*NewFileMeta(1, 1, 10, 1024), *NewFileMeta(2, 1, 10, 1024), *NewFileMeta(3, 1, 10, 1024))
+	level.addFiles(NewFileMeta(1, 1, 10, 1024), NewFileMeta(2, 1, 10, 1024), NewFileMeta(3, 1, 10, 1024))
 
 	var files = level.getFiles()
 

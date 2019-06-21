@@ -7,8 +7,8 @@ import (
 const sstSuffix = "sst"
 const TmpSuffix = "tmp"
 
-//const options = "OPTIONS"
 const Lock = "LOCK"
+const Options = "OPTIONS"
 const manifestPrefix = "MANIFEST-"
 
 // FileType represent a file type.
@@ -41,11 +41,7 @@ func Table(fileNumber int64) string {
 	return fmt.Sprintf("%06d.%s", fileNumber, sstSuffix)
 }
 
-// Info file for store/family option
-func Info() string {
-	return "INFO"
-}
-
+// manifestFileName return manifeset file name
 func manifestFileName(fileNumber int64) string {
 	return fmt.Sprintf("%s%06d", manifestPrefix, fileNumber)
 }

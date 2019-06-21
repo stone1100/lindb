@@ -98,7 +98,7 @@ func (n *NewFile) Decode(v []byte) error {
 
 // Apply new file edit log to version
 func (n *NewFile) apply(version *Version) {
-	version.addFile(int(n.level), *n.file)
+	version.addFile(int(n.level), n.file)
 }
 
 // DeleteFile remove file from metadata

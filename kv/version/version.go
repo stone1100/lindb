@@ -43,9 +43,22 @@ func (v *Version) Release() {
 	}
 }
 
+// findFiles finds all files include key from each level
+func (v *Version) findFiles(key uint32) []*FileMeta {
+	var files []*FileMeta
+	for _, level := range v.levels {
+		for _, file := range level.getFiles() {
+			if key >= file.minKey && key <= file.maxKey {
+				files = append(files, file)
+			}
+		}
+	}
+	return files
+}
+
 // getAllFilesetAllFiles returns all ative files of each level
-func (v *Version) getAllFiles() []FileMeta {
-	var files []FileMeta
+func (v *Version) getAllFiles() []*FileMeta {
+	var files []*FileMeta
 	for _, value := range v.levels {
 		files = append(files, value.getFiles()...)
 	}
@@ -69,12 +82,12 @@ func (v *Version) cloneVersion() *Version {
 }
 
 // addFiles adds file meta into spec level
-func (v *Version) addFiles(level int, files []FileMeta) {
+func (v *Version) addFiles(level int, files []*FileMeta) {
 	v.levels[level].addFiles(files...)
 }
 
 // addFile adds file meta into spec level
-func (v *Version) addFile(level int, file FileMeta) {
+func (v *Version) addFile(level int, file *FileMeta) {
 	v.levels[level].addFile(file)
 }
 

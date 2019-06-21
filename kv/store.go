@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/eleme/lindb/kv/table"
 	"github.com/eleme/lindb/kv/version"
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
@@ -24,6 +25,7 @@ type Store struct {
 	families map[string]*Family
 
 	storeInfo *storeInfo
+	cache     table.Cache
 
 	mutex sync.RWMutex
 
@@ -37,7 +39,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	if util.Exist(option.Path) {
 		// exist store, open it, load store info and config from INFO
 		info = &storeInfo{}
-		if err := util.DecodeToml(filepath.Join(option.Path, version.Info()), info); err != nil {
+		if err := util.DecodeToml(filepath.Join(option.Path, version.Options), info); err != nil {
 			return nil, fmt.Errorf("load store info error:%s", err)
 		}
 	} else {
@@ -103,6 +105,9 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 	if err := store.versions.Recover(); err != nil {
 		return nil, fmt.Errorf("recover store version set error:%s", err)
 	}
+
+	// build store reader cache
+	store.cache = table.NewCache(store.option.Path)
 	return store, nil
 }
 
@@ -151,12 +156,15 @@ func (s *Store) GetFamily(familyName string) (*Family, bool) {
 
 // Close closes store, then release some resoure
 func (s *Store) Close() error {
+	if err := s.cache.Close(); err != nil {
+		s.logger.Error("close store cache error", zap.String("store", s.option.Path), zap.Error(err))
+	}
 	return s.lock.Unlock()
 }
 
 // dumpStoreInfo peresist store info to INFO file
 func (s *Store) dumpStoreInfo() error {
-	infoPath := filepath.Join(s.option.Path, version.Info())
+	infoPath := filepath.Join(s.option.Path, version.Options)
 	tmp := fmt.Sprintf("%s.%s", infoPath, version.TmpSuffix)
 	// write store info using toml format
 	if err := util.EncodeToml(tmp, s.storeInfo); err != nil {

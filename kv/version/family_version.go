@@ -34,9 +34,22 @@ func (fv *FamilyVersion) GetCurrent() *Version {
 	return fv.current
 }
 
+// FindFiles finds all files include key from currnet's level,
+// must return files related version, and retain it, release version after read data.
+func (fv *FamilyVersion) FindFiles(key uint32) (*Version, []*FileMeta) {
+	fv.mutex.RLock()
+	current := fv.current
+	// must retian it, don't release util finish read, release it in snaphost's close
+	current.retain()
+	// find files releted given key
+	files := current.findFiles(key)
+	fv.mutex.RUnlock()
+	return current, files
+}
+
 // GetAllFiles returns all files based on all active versions
-func (fv *FamilyVersion) GetAllFiles() []FileMeta {
-	var files []FileMeta
+func (fv *FamilyVersion) GetAllFiles() []*FileMeta {
+	var files []*FileMeta
 	var fileNumbers = make(map[int64]int64)
 	for _, version := range fv.activeVersions {
 		versionFiles := version.getAllFiles()
@@ -64,8 +77,10 @@ func (fv *FamilyVersion) removeVersion(v *Version) {
 func (fv *FamilyVersion) appendVersion(v *Version) {
 	previous := fv.current
 
+	fv.mutex.Lock()
 	fv.activeVersions[v.id] = v
 	fv.current = v
+	fv.mutex.Unlock()
 
 	if previous != nil {
 		previous.Release()

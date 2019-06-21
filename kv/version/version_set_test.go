@@ -61,7 +61,7 @@ func TestCommitFamilyEditLog(t *testing.T) {
 		assert.Error(t, err, "recover error")
 	}
 	familyVersion := vs.GetFamilyVersion("f")
-	assert.Equal(t, *newFile.file, familyVersion.GetCurrent().getAllFiles()[0], "cannot recover family version data")
+	assert.Equal(t, newFile.file, familyVersion.GetCurrent().getAllFiles()[0], "cannot recover family version data")
 	assert.Equal(t, int64(3), vs.nextFileNumber, "recover file number error")
 
 	vs.Destroy()
