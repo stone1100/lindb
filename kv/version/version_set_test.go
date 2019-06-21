@@ -9,7 +9,7 @@ import (
 	"github.com/eleme/lindb/pkg/util"
 )
 
-var vsTestPath = "../../test_data/test_vs"
+var vsTestPath = "test_data"
 
 func TestAssign_NextFileNumber(t *testing.T) {
 	initVersionSetTestData()

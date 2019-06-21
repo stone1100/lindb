@@ -8,7 +8,7 @@ import (
 	"github.com/eleme/lindb/pkg/util"
 )
 
-var testKVPath = "../test_data/kv"
+var testKVPath = "../test_data"
 
 func TestReOpen(t *testing.T) {
 	option := DefaultStoreOption(testKVPath)
