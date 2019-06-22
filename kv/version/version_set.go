@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/eleme/lindb/kv/journal"
+	"github.com/eleme/lindb/pkg/bufioutil"
 	"github.com/eleme/lindb/pkg/logger"
 	"github.com/eleme/lindb/pkg/util"
 )
@@ -26,7 +26,7 @@ type StoreVersionSet struct {
 
 	numOfLevels int // num of levels
 
-	manifest *journal.Writer
+	manifest bufioutil.BufioWriter
 	mutex    sync.RWMutex
 
 	logger *zap.Logger
@@ -150,7 +150,7 @@ func (vs *StoreVersionSet) recover() error {
 		return err
 	}
 	manifestPath := vs.getManifestFilePath(manifestFileName)
-	reader, err := journal.NewReader(manifestPath)
+	reader, err := bufioutil.NewBufioReader(manifestPath)
 	defer func() {
 		if e := reader.Close(); e != nil {
 			logger.GetLogger().Error("close manifest reader error",
@@ -158,18 +158,17 @@ func (vs *StoreVersionSet) recover() error {
 		}
 	}()
 	if err != nil {
-		return err
+		return fmt.Errorf("create journal reader error:%s", err)
 	}
 	// read edit log
 	for {
-		next, err := reader.Next()
+		eof, record, err := reader.Read()
+		if eof {
+			break
+		}
 		if err != nil {
 			return fmt.Errorf("recover data from manifest file error:%s", err)
 		}
-		if !next {
-			break
-		}
-		record := reader.Record()
 		editLog := &EditLog{}
 		unmalshalErr := editLog.unmarshal(record)
 		if unmalshalErr != nil {
@@ -215,8 +214,8 @@ func (vs *StoreVersionSet) readManifestFileName() (string, error) {
 func (vs *StoreVersionSet) initJournal() error {
 	if vs.manifest == nil {
 		manifestFileName := manifestFileName(vs.manifestFileNumber) // manifest file name
-		manifest := vs.getManifestFilePath(manifestFileName)
-		writer, err := journal.NewWriter(manifest)
+		manifestPath := vs.getManifestFilePath(manifestFileName)
+		writer, err := bufioutil.NewBufioWriter(manifestPath)
 		if err != nil {
 			return err
 		}
@@ -317,13 +316,13 @@ func (vs *StoreVersionSet) createStoreSnapshot() *EditLog {
 }
 
 // peresistEditLogs peresists eidt logs into manifest file
-func (vs *StoreVersionSet) peresistEditLogs(writer *journal.Writer, editLogs []*EditLog) error {
+func (vs *StoreVersionSet) peresistEditLogs(writer bufioutil.BufioWriter, editLogs []*EditLog) error {
 	for _, editLog := range editLogs {
 		v, err := editLog.marshal()
 		if err != nil {
 			return fmt.Errorf("encode edit log error:%s", err)
 		}
-		if err := writer.Write(v); err != nil {
+		if _, err := writer.Write(v); err != nil {
 			return fmt.Errorf("write edit log error:%s", err)
 		}
 		if err := writer.Sync(); err != nil {
