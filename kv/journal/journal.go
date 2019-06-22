@@ -70,8 +70,13 @@ func (r *Reader) Next() (bool, error) {
 		return false, r.err
 	}
 	r.eof, r.value, r.err = r.reader.Read()
-
-	return !r.eof && len(r.value) > 0, r.err
+	if r.eof {
+		return false, nil
+	}
+	if r.err != nil {
+		return false, r.err
+	}
+	return len(r.value) > 0, r.err
 }
 
 // Record returns wal log record

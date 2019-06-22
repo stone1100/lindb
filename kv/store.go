@@ -101,7 +101,7 @@ func NewStore(name string, option StoreOption) (*Store, error) {
 			store.families[familyName] = family
 		}
 	}
-	// recover version set
+	// recover version set, after recvoer family options
 	if err := store.versions.Recover(); err != nil {
 		return nil, fmt.Errorf("recover store version set error:%s", err)
 	}
@@ -158,6 +158,9 @@ func (s *Store) GetFamily(familyName string) (*Family, bool) {
 func (s *Store) Close() error {
 	if err := s.cache.Close(); err != nil {
 		s.logger.Error("close store cache error", zap.String("store", s.option.Path), zap.Error(err))
+	}
+	if err := s.versions.Destroy(); err != nil {
+		s.logger.Error("destroy store version set error", zap.String("store", s.option.Path), zap.Error(err))
 	}
 	return s.lock.Unlock()
 }

@@ -25,7 +25,10 @@ func TestReOpen(t *testing.T) {
 
 	kv.Close()
 
-	kv2, _ := NewStore("test_kv", option)
+	kv2, e := NewStore("test_kv", option)
+	if e != nil {
+		t.Error(e)
+	}
 	assert.NotNil(t, kv2, "cannot re-open kv store")
 	f2, _ := kv.GetFamily("f")
 	assert.Equal(t, f1.name, f2.name, "family diff when store reopen")

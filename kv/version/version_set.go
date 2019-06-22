@@ -46,14 +46,17 @@ func NewStoreVersionSet(storePath string, numOfLevels int) *StoreVersionSet {
 }
 
 // Destroy closes version set, release resource, such as journal writer etc.
-func (vs *StoreVersionSet) Destroy() {
+func (vs *StoreVersionSet) Destroy() error {
 	vs.mutex.Lock()
 	defer vs.mutex.Unlock()
 
 	// close manifest journal writer if it exist
 	if vs.manifest != nil {
-		vs.manifest.Close()
+		if err := vs.manifest.Close(); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // NextFileNumber generates next file number
@@ -75,17 +78,9 @@ func (vs *StoreVersionSet) CommitFamilyEditLog(family string, editLog *EditLog) 
 
 	// add next file number init edit log for each delta edit log
 	editLog.Add(NewNextFileNumber(vs.nextFileNumber))
-
-	v, err := editLog.marshal()
-	if err != nil {
-		return fmt.Errorf("encode edit log error:%s", err)
-	}
-
-	if err := vs.manifest.Write(v); err != nil {
-		return fmt.Errorf("write edit log error:%s", err)
-	}
-	if err := vs.manifest.Sync(); err != nil {
-		return fmt.Errorf("sync edit log error:%s", err)
+	// peresist eidt log
+	if err := vs.peresistEditLogs(vs.manifest, []*EditLog{editLog}); err != nil {
+		return err
 	}
 
 	newVersion := familyVersion.GetCurrent().cloneVersion()
@@ -156,6 +151,12 @@ func (vs *StoreVersionSet) recover() error {
 	}
 	manifestPath := vs.getManifestFilePath(manifestFileName)
 	reader, err := journal.NewReader(manifestPath)
+	defer func() {
+		if e := reader.Close(); e != nil {
+			logger.GetLogger().Error("close manifest reader error",
+				zap.String("manifeset", manifestPath))
+		}
+	}()
 	if err != nil {
 		return err
 	}
@@ -207,17 +208,29 @@ func (vs *StoreVersionSet) readManifestFileName() (string, error) {
 	return string(v), nil
 }
 
+// initJournal creates journal writer,
+// 1. must writes version set's data into journal,
+// 2. set current manifest file name into current file.
+// 3. set version set's manifest writer
 func (vs *StoreVersionSet) initJournal() error {
 	if vs.manifest == nil {
 		manifestFileName := manifestFileName(vs.manifestFileNumber) // manifest file name
 		manifest := vs.getManifestFilePath(manifestFileName)
-		if err := vs.setCurrent(manifestFileName); err != nil {
-			return err
-		}
 		writer, err := journal.NewWriter(manifest)
 		if err != nil {
 			return err
 		}
+		// need snapshot writes snaphot first
+		editLogs := vs.createSnapshot()
+		if err := vs.peresistEditLogs(writer, editLogs); err != nil {
+			return err
+		}
+		// make sure write snapshot success, importment!!!!!!!
+		// then set manifest file name into current file
+		if err := vs.setCurrent(manifestFileName); err != nil {
+			return err
+		}
+		// finally set version set's namifest writer
 		vs.manifest = writer
 	}
 	return nil
@@ -263,4 +276,59 @@ func (vs *StoreVersionSet) getCurrentPath() string {
 // getMainfiestFilePath returns manifest file path
 func (vs *StoreVersionSet) getManifestFilePath(manifestFileName string) string {
 	return filepath.Join(vs.storePath, manifestFileName)
+}
+
+// createSnapshot builds current version edit log
+func (vs *StoreVersionSet) createSnapshot() []*EditLog {
+	var editLogs []*EditLog
+	// for family level edit log
+	for id, name := range vs.familyIDs {
+		editLog := vs.createFamilySnapshot(id, vs.familyVersions[name])
+		editLogs = append(editLogs, editLog)
+	}
+
+	// for store level edit log
+	editLogs = append(editLogs, vs.createStoreSnapshot())
+	return editLogs
+}
+
+// createFamilySnapshot creates snapshot of eidt log for family level
+func (vs *StoreVersionSet) createFamilySnapshot(familyID int, familyVersion *FamilyVersion) *EditLog {
+	editLog := NewEditLog(familyID)
+	// save current version all active files
+	levels := familyVersion.GetCurrent().levels
+	for numOfLevel, level := range levels {
+		files := level.getFiles()
+		for _, file := range files {
+			// level -> file meta
+			newFile := CreateNewFile(int32(numOfLevel), file)
+			editLog.Add(newFile)
+		}
+	}
+	return editLog
+}
+
+// createStoreSnapshot creates snapshot of eidt log for store level
+func (vs *StoreVersionSet) createStoreSnapshot() *EditLog {
+	editLog := NewEditLog(StoreFamilyID)
+	// save next file number
+	editLog.Add(NewNextFileNumber(vs.nextFileNumber))
+	return editLog
+}
+
+// peresistEditLogs peresists eidt logs into manifest file
+func (vs *StoreVersionSet) peresistEditLogs(writer *journal.Writer, editLogs []*EditLog) error {
+	for _, editLog := range editLogs {
+		v, err := editLog.marshal()
+		if err != nil {
+			return fmt.Errorf("encode edit log error:%s", err)
+		}
+		if err := writer.Write(v); err != nil {
+			return fmt.Errorf("write edit log error:%s", err)
+		}
+		if err := writer.Sync(); err != nil {
+			return fmt.Errorf("sync edit log error:%s", err)
+		}
+	}
+	return nil
 }

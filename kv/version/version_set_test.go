@@ -11,6 +11,21 @@ import (
 
 var vsTestPath = "test_data"
 
+func TestVersionSetRecover(t *testing.T) {
+	initVersionSetTestData()
+	defer destoryVersionTestData()
+
+	var vs = NewStoreVersionSet(vsTestPath, 2)
+	err := vs.Recover()
+	assert.Nil(t, err)
+	vs.Destroy()
+
+	vs = NewStoreVersionSet(vsTestPath, 2)
+	err2 := vs.Recover()
+	assert.Nil(t, err2)
+	vs.Destroy()
+}
+
 func TestAssign_NextFileNumber(t *testing.T) {
 	initVersionSetTestData()
 	defer destoryVersionTestData()
@@ -37,11 +52,10 @@ func TestCommitFamilyEditLog(t *testing.T) {
 
 	var vs = NewStoreVersionSet(vsTestPath, 2)
 	assert.NotNil(t, vs, "cannot create store version")
-	if err := vs.Recover(); err != nil {
-		assert.Error(t, err, "recover error")
-	}
+	var err = vs.Recover()
+	assert.Nil(t, err, "recover error")
 
-	var err = vs.CommitFamilyEditLog("f", nil)
+	err = vs.CommitFamilyEditLog("f", nil)
 	assert.NotNil(t, err, "commit not exist family version")
 
 	familyID := 1
@@ -55,16 +69,19 @@ func TestCommitFamilyEditLog(t *testing.T) {
 
 	vs.Destroy()
 
-	vs = NewStoreVersionSet(vsTestPath, 2)
-	vs.CreateFamilyVersion("f", familyID)
-	if err := vs.Recover(); err != nil {
-		assert.Error(t, err, "recover error")
-	}
-	familyVersion := vs.GetFamilyVersion("f")
-	assert.Equal(t, newFile.file, familyVersion.GetCurrent().getAllFiles()[0], "cannot recover family version data")
-	assert.Equal(t, int64(3), vs.nextFileNumber, "recover file number error")
+	// test recover many times
+	for i := 0; i < 3; i++ {
+		vs = NewStoreVersionSet(vsTestPath, 2)
+		vs.CreateFamilyVersion("f", familyID)
+		err = vs.Recover()
+		assert.Nil(t, err, "recover error")
 
-	vs.Destroy()
+		familyVersion := vs.GetFamilyVersion("f")
+		assert.Equal(t, newFile.file, familyVersion.GetCurrent().getAllFiles()[0], "cannot recover family version data")
+		assert.Equal(t, int64(3+i), vs.nextFileNumber, "recover file number error")
+
+		vs.Destroy()
+	}
 }
 
 func TestCreateFamily(t *testing.T) {
