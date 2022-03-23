@@ -28,8 +28,6 @@ import (
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/pkg/encoding"
 	"github.com/lindb/lindb/series"
-	"github.com/lindb/lindb/series/field"
-	"github.com/lindb/lindb/series/metric"
 	"github.com/lindb/lindb/series/tag"
 	"github.com/lindb/lindb/tsdb"
 	"github.com/lindb/lindb/tsdb/metadb"
@@ -157,20 +155,17 @@ func (t *tagFilterTask) AfterRun() {
 type seriesIDsSearchTask struct {
 	baseQueryTask
 
-	ctx   *storageExecuteContext
-	shard tsdb.Shard
-
-	result *roaring.Bitmap
+	executeCtx *flow.StorageExecuteContext
+	shard      tsdb.Shard
 }
 
 // newSeriesIDsSearchTask creates series ids search task
-func newSeriesIDsSearchTask(ctx *storageExecuteContext, shard tsdb.Shard, result *roaring.Bitmap) flow.QueryTask {
+func newSeriesIDsSearchTask(executeCtx *flow.StorageExecuteContext, shard tsdb.Shard) flow.QueryTask {
 	task := &seriesIDsSearchTask{
-		ctx:    ctx,
-		shard:  shard,
-		result: result,
+		executeCtx: executeCtx,
+		shard:      shard,
 	}
-	if ctx.query.Explain {
+	if executeCtx.Query.Explain {
 		return &queryStatTask{
 			task: task,
 		}
@@ -180,22 +175,23 @@ func newSeriesIDsSearchTask(ctx *storageExecuteContext, shard tsdb.Shard, result
 
 // Run executes series ids search based on tag filtering result
 func (t *seriesIDsSearchTask) Run() (err error) {
-	condition := t.ctx.query.Condition
+	condition := t.executeCtx.Query.Condition
 	var seriesIDs *roaring.Bitmap
 	if condition != nil {
 		// if it gets tag filter result do series ids searching
-		seriesSearch := newSeriesSearchFunc(t.shard.IndexDatabase(), t.ctx.tagFilterResult, t.ctx.query.Condition)
+		seriesSearch := newSeriesSearchFunc(t.shard.IndexDatabase(), t.executeCtx.TagFilterResult, t.executeCtx.Query.Condition)
 		seriesIDs, err = seriesSearch.Search()
 	} else {
 		// get series ids for metric level
-		seriesIDs, err = t.shard.IndexDatabase().GetSeriesIDsForMetric(t.ctx.query.Namespace, t.ctx.query.MetricName)
-		if err == nil && !t.ctx.query.HasGroupBy() {
+		seriesIDs, err = t.shard.IndexDatabase().GetSeriesIDsForMetric(t.executeCtx.Query.Namespace,
+			t.executeCtx.Query.MetricName)
+		if err == nil && !t.executeCtx.Query.HasGroupBy() {
 			// add series id without tags, maybe metric has too many series, but one series without tags
 			seriesIDs.Add(series.IDWithoutTags)
 		}
 	}
 	if err == nil && seriesIDs != nil {
-		t.result.Or(seriesIDs)
+		t.executeCtx.SeriesIDsAfterFiltering.Or(seriesIDs)
 	}
 	return
 }
@@ -203,36 +199,28 @@ func (t *seriesIDsSearchTask) Run() (err error) {
 // AfterRun invokes after series ids search, collects the series ids search stats
 func (t *seriesIDsSearchTask) AfterRun() {
 	t.baseQueryTask.AfterRun()
-	t.ctx.stats.SetShardSeriesIDsSearchStats(t.shard.ShardID(), t.result.GetCardinality(), t.cost)
+	//TODO
+	//t.ctx.stats.SetShardSeriesIDsSearchStats(t.shard.ShardID(), t.result.GetCardinality(), t.cost)
 }
 
 // familyFilterTask represents family data filtering task
 type familyFilterTask struct {
 	baseQueryTask
 
-	ctx       *storageExecuteContext
-	shard     tsdb.Shard
-	metricID  metric.ID
-	fields    field.Metas
-	seriesIDs *roaring.Bitmap
+	executeCtx *flow.StorageExecuteContext
+	shard      tsdb.Shard
 
 	rs *timeSpanResultSet
 }
 
 // newFamilyFilterTask creates family data filtering task
-func newFamilyFilterTask(ctx *storageExecuteContext, shard tsdb.Shard,
-	metricID metric.ID, fields field.Metas, seriesIDs *roaring.Bitmap,
-	rs *timeSpanResultSet,
-) flow.QueryTask {
+func newFamilyFilterTask(executeCtx *flow.StorageExecuteContext, shard tsdb.Shard, rs *timeSpanResultSet) flow.QueryTask {
 	task := &familyFilterTask{
-		ctx:       ctx,
-		shard:     shard,
-		metricID:  metricID,
-		fields:    fields,
-		seriesIDs: seriesIDs,
-		rs:        rs,
+		executeCtx: executeCtx,
+		shard:      shard,
+		rs:         rs,
 	}
-	if ctx.query.Explain {
+	if executeCtx.Query.Explain {
 		return &queryStatTask{
 			task: task,
 		}
@@ -242,14 +230,14 @@ func newFamilyFilterTask(ctx *storageExecuteContext, shard tsdb.Shard,
 
 // Run executes file data filtering based on series ids and time range for each data family
 func (t *familyFilterTask) Run() error {
-	families := t.shard.GetDataFamilies(t.ctx.query.Interval.Type(), t.ctx.query.TimeRange)
+	families := t.shard.GetDataFamilies(t.executeCtx.Query.Interval.Type(), t.executeCtx.Query.TimeRange)
 	if len(families) == 0 {
 		return nil
 	}
 	for idx := range families {
 		family := families[idx]
 		// execute data family search in background goroutine
-		resultSet, err := family.Filter(t.metricID, t.seriesIDs, t.ctx.query.TimeRange, t.fields)
+		resultSet, err := family.Filter(t.executeCtx)
 		if err != nil {
 			return err
 		}
@@ -263,33 +251,29 @@ func (t *familyFilterTask) Run() error {
 // AfterRun invokes after file data filtering, collects the file data filtering stats
 func (t *familyFilterTask) AfterRun() {
 	t.baseQueryTask.AfterRun()
-	t.ctx.stats.SetShardKVDataFilterCost(t.shard.ShardID(), t.cost)
+	//TODO
+	//t.ctx.stats.SetShardKVDataFilterCost(t.shard.ShardID(), t.cost)
 }
 
 // groupingContextFindTask represents group by context find task
 type groupingContextFindTask struct {
 	baseQueryTask
 
-	ctx              *storageExecuteContext
-	groupByTagKeyIDs []uint32
-	shard            tsdb.Shard
-	seriesIDs        *roaring.Bitmap
-	result           *groupingResult
+	executeCtx *flow.StorageExecuteContext
+	shard      tsdb.Shard
+	seriesIDs  *roaring.Bitmap
+	result     *groupingResult
 }
 
 // newGroupingContextFindTask creates the group by context find task
-func newGroupingContextFindTask(ctx *storageExecuteContext, shard tsdb.Shard,
-	groupByTagKeyIDs []uint32,
-	seriesIDs *roaring.Bitmap, result *groupingResult,
+func newGroupingContextFindTask(executeCtx *flow.StorageExecuteContext, shard tsdb.Shard, result *groupingResult,
 ) flow.QueryTask {
 	task := &groupingContextFindTask{
-		ctx:              ctx,
+		executeCtx: executeCtx,
 		shard:            shard,
-		groupByTagKeyIDs: groupByTagKeyIDs,
-		seriesIDs:        seriesIDs,
 		result:           result,
 	}
-	if ctx.query.Explain {
+	if executeCtx.Query.Explain {
 		return &queryStatTask{
 			task: task,
 		}
@@ -460,7 +444,7 @@ func newCollectTagValuesTask(ctx *storageExecuteContext, metadata metadb.Metadat
 
 // Run executes collect tag values by ids
 func (t *collectTagValuesTask) Run() error {
-	return t.metadata.TagMetadata().CollectTagValues(t.tagKey.ID, t.tagValueIDs, t.tagValues)
+	return t.metadata.TagMetadata().CollectTagValues(tag.KeyID(t.tagKey.ID), t.tagValueIDs, t.tagValues)
 }
 
 // AfterRun invokes after tag value collect, collects execution stats

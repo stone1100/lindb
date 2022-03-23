@@ -19,6 +19,7 @@ package storagequery
 
 import (
 	"fmt"
+	"github.com/lindb/lindb/series/tag"
 
 	"github.com/lindb/lindb/constants"
 	"github.com/lindb/lindb/models"
@@ -98,7 +99,7 @@ func (e *metadataStorageExecutor) Execute() (result []string, err error) {
 				return nil, fmt.Errorf("%w , namespace: %s, metricName: %s",
 					constants.ErrTagFilterResultNotFound, req.Namespace, req.MetricName)
 			}
-			groupByTagKeyIDs := []uint32{tagKeyID}
+			groupByTagKeyIDs := []tag.KeyID{tagKeyID}
 			// get shard by given query shard id list
 			for _, shardID := range e.shardIDs {
 				shard, ok := e.database.GetShard(shardID)

@@ -164,8 +164,19 @@ func (e *storageExecutor) Execute() {
 	e.fields = plan.getFields()
 	e.storageExecutePlan = plan
 	if e.ctx.query.HasGroupBy() {
-		e.groupByTagKeyIDs = e.storageExecutePlan.groupByKeyIDs()
-		e.tagValueIDs = make([]*roaring.Bitmap, len(e.groupByTagKeyIDs))
+		groupByTagKeyIDs := e.storageExecutePlan.groupByKeyIDs()
+		groupByTagValueIDs := make([]*roaring.Bitmap, len(e.groupByTagKeyIDs))
+
+		for idx, tagMeta := range groupByTagKeyIDs {
+			tagValueIDs, err := e.database.Metadata().TagMetadata().GetTagValueIDsForTag(tagMeta.ID)
+			if err != nil {
+				e.queryFlow.Complete(err)
+				return
+			}
+			groupByTagValueIDs[idx] = tagValueIDs
+		}
+		e.groupByTagKeyIDs = groupByTagKeyIDs
+		e.tagValueIDs = groupByTagValueIDs
 	}
 
 	option := e.database.GetOption()
@@ -194,21 +205,22 @@ func (e *storageExecutor) executeQuery() {
 				e.collectGroupByTagValues()
 			}()
 			// 1. get series ids by query condition
-			seriesIDs := roaring.New()
-			t := newSeriesIDsSearchTask(e.ctx, shard, seriesIDs)
+			executeCtx := flow.NewStorageExecuteContext(e.ctx.query, e.metricID, e.fields)
+			executeCtx.TagFilterResult = e.ctx.tagFilterResult
+			t := newSeriesIDsSearchTask(executeCtx, shard)
 			err := t.Run()
 			if err != nil && !errors.Is(err, constants.ErrNotFound) {
 				// maybe series ids not found in shard, so ignore not found err
 				e.queryFlow.Complete(err)
 			}
 			// if series ids not found
-			if seriesIDs.IsEmpty() {
+			if executeCtx.SeriesIDsAfterFiltering.IsEmpty() {
 				return
 			}
 
 			rs := newTimeSpanResultSet(len(e.fields))
 			// 2. filter data each data family in shard
-			t = newFamilyFilterTask(e.ctx, shard, e.metricID, e.fields, seriesIDs, rs)
+			t = newFamilyFilterTask(executeCtx, shard, rs)
 			err = t.Run()
 			if err != nil && !errors.Is(err, constants.ErrNotFound) {
 				// maybe data not exist in shard, so ignore not found err
@@ -219,6 +231,9 @@ func (e *storageExecutor) executeQuery() {
 				// data not found
 				return
 			}
+
+			executeCtx.GroupByTagKeys = e.groupByTagKeyIDs
+			executeCtx.TagValueIDsForGroupByTagKey = e.tagValueIDs
 
 			// 3. execute group by
 			e.pendingForGrouping.Inc()
@@ -245,7 +260,7 @@ func (e *storageExecutor) executeGroupBy(shard tsdb.Shard, rs *timeSpanResultSet
 	if e.ctx.query.HasGroupBy() {
 		// 1. grouping, if it has grouping, do group by tag keys, else just split series ids as batch first,
 		// get grouping context if it needs
-		tagKeys := make([]uint32, len(e.groupByTagKeyIDs))
+		tagKeys := make([]tag.KeyID, len(e.groupByTagKeyIDs))
 		for idx, tagKeyID := range e.groupByTagKeyIDs {
 			tagKeys[idx] = tagKeyID.ID
 		}

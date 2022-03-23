@@ -19,6 +19,10 @@ package query
 
 import (
 	"encoding/binary"
+	"fmt"
+	"github.com/lindb/lindb/pkg/timeutil"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -75,4 +79,95 @@ func TestGroupingContext_ScanTagValueIDs(t *testing.T) {
 	scanner.EXPECT().GetSeriesAndTagValue(uint16(1)).Return(nil, nil)
 	result = ctx.ScanTagValueIDs(1, roaring.BitmapOf(1, 2, 6, 10).GetContainerAtIndex(0))
 	assert.Equal(t, roaring.New(), result[0])
+}
+
+func TestGroupingContext_Build2(t *testing.T) {
+	hosts := NewTagValuesEntrySet()
+	disks := NewTagValuesEntrySet()
+	partitions := NewTagValuesEntrySet()
+	total := roaring.New()
+	id := uint32(0)
+	count := 40000
+	for i := 0; i < count; i++ {
+		for j := 0; j < 4; j++ {
+			for k := 0; k < 20; k++ {
+				total.Add(id)
+				id++
+				host := "host" + strconv.Itoa(i)
+				disk := "/tmp" + strconv.Itoa(j)
+				partition := "partition" + strconv.Itoa(k)
+				h, ok := hosts.values[host]
+				if !ok {
+					hosts.values[host] = roaring.BitmapOf(id)
+				} else {
+					h.Add(id)
+				}
+
+				d, ok := disks.values[disk]
+				if !ok {
+					disks.values[disk] = roaring.BitmapOf(id)
+				} else {
+					d.Add(id)
+				}
+
+				p, ok := partitions.values[partition]
+				if !ok {
+					partitions.values[partition] = roaring.BitmapOf(id)
+				} else {
+					p.Add(id)
+				}
+			}
+		}
+	}
+
+	// test single group by tag keys
+	ctx := NewGroupContext2(1)
+	ctx.SetTagValuesEntrySet(0, disks)
+	assert.Equal(t, 1, ctx.Len())
+	total= roaring.New()
+	total.AddRange(0, uint64(1000000))
+	//keys := seriesIDs.GetHighKeys()
+	keys := total.GetHighKeys()
+	i := 0
+	s := timeutil.Now()
+	for idx, key := range keys {
+		container := total.GetContainerAtIndex(idx)
+		i += container.GetCardinality()
+		k := key
+		_= ctx.BuildGroup(k, container)
+		//assert.Len(t, rs, 4)
+	}
+	fmt.Println(timeutil.Now() - s)
+	// test single group by tag keys
+	s = timeutil.Now()
+	ctx = NewGroupContext2(2)
+	ctx.SetTagValuesEntrySet(0, disks)
+	ctx.SetTagValuesEntrySet(1, partitions)
+	assert.Equal(t, 2, ctx.Len())
+	var wait sync.WaitGroup
+	for idx, key := range keys {
+		container := total.GetContainerAtIndex(idx)
+		i += container.GetCardinality()
+		k := key
+		wait.Add(1)
+		go func() {
+			_ = ctx.BuildGroup(k, container)
+			//assert.Len(t, rs, 800000)
+			wait.Done()
+		}()
+	}
+	wait.Wait()
+	fmt.Println(timeutil.Now() - s)
+	var data [][]byte
+	for _, v := range hosts.values {
+		d, _ := v.MarshalBinary()
+		data = append(data, d)
+	}
+	fmt.Println(len(data))
+	s = timeutil.Now()
+	for _, v := range data {
+		bitmap := roaring.New()
+		_, _ = bitmap.FromBuffer(v)
+	}
+	fmt.Println(timeutil.Now() - s)
 }

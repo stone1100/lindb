@@ -18,6 +18,7 @@
 package tagindex
 
 import (
+	"github.com/lindb/lindb/series/tag"
 	"github.com/lindb/roaring"
 
 	"github.com/lindb/lindb/kv/table"
@@ -30,8 +31,8 @@ import (
 // ForwardReader represents read forward index data(series id=>tag value id)
 type ForwardReader interface {
 	series.Grouping
-	// GetSeriesIDsForTagKeyID returns series ids for spec metric's tag key id
-	GetSeriesIDsForTagKeyID(tagKeyID uint32) (*roaring.Bitmap, error)
+	// GetSeriesIDsForTagKeyID returns series ids for spec tag key id of metric.
+	GetSeriesIDsForTagKeyID(tagKeyID tag.KeyID) (*roaring.Bitmap, error)
 }
 
 // forwardReader implements ForwardReader
@@ -46,8 +47,8 @@ func NewForwardReader(readers []table.Reader) ForwardReader {
 	}
 }
 
-// GetSeriesIDsForTagKeyID get series ids for spec metric's tag key id
-func (r *forwardReader) GetSeriesIDsForTagKeyID(tagKeyID uint32) (*roaring.Bitmap, error) {
+// GetSeriesIDsForTagKeyID get series ids for spec tag key id of metric.
+func (r *forwardReader) GetSeriesIDsForTagKeyID(tagKeyID tag.KeyID) (*roaring.Bitmap, error) {
 	seriesIDs := roaring.New()
 	if err := r.findReader(tagKeyID, func(reader TagForwardReader) {
 		seriesIDs.Or(reader.getSeriesIDs())
@@ -58,10 +59,10 @@ func (r *forwardReader) GetSeriesIDsForTagKeyID(tagKeyID uint32) (*roaring.Bitma
 }
 
 // GetGroupingScanner returns the grouping scanners based on tag key ids and series ids
-func (r *forwardReader) GetGroupingScanner(tagKeyID uint32, seriesIDs *roaring.Bitmap) ([]series.GroupingScanner, error) {
+func (r *forwardReader) GetGroupingScanner(tagKeyID tag.KeyID, seriesIDs *roaring.Bitmap) ([]series.GroupingScanner, error) {
 	var scanners []series.GroupingScanner
 	if err := r.findReader(tagKeyID, func(reader TagForwardReader) {
-		// check reader if has series ids(after filtering)
+		// check reader if it has series ids(after filtering)
 		finalSeriesIDs := roaring.FastAnd(seriesIDs, reader.getSeriesIDs())
 		if finalSeriesIDs.IsEmpty() {
 			// not found
@@ -76,9 +77,9 @@ func (r *forwardReader) GetGroupingScanner(tagKeyID uint32, seriesIDs *roaring.B
 }
 
 // findReader finds the tag forward reader by tag key id, if reader exist, will invoke callback function
-func (r *forwardReader) findReader(tagKeyID uint32, callback func(reader TagForwardReader)) error {
+func (r *forwardReader) findReader(tagKeyID tag.KeyID, callback func(reader TagForwardReader)) error {
 	for _, reader := range r.readers {
-		value, err := reader.Get(tagKeyID)
+		value, err := reader.Get(uint32(tagKeyID))
 		if err != nil {
 			continue
 		}

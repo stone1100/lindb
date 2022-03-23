@@ -19,25 +19,20 @@ package storagequery
 
 import (
 	"fmt"
+	"github.com/lindb/lindb/series/tag"
 
-	"github.com/lindb/roaring"
-
+	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/sql/stmt"
 	"github.com/lindb/lindb/tsdb/metadb"
 )
 
 //go:generate mockgen -source ./tag_search.go -destination=./tag_search_mock.go -package=storagequery
 
-// tagFilterResult represents the tag filter result, include tag key id and tag value ids
-type tagFilterResult struct {
-	tagKey      uint32
-	tagValueIDs *roaring.Bitmap
-}
-
 // TagSearch represents the tag filtering by tag filter expr
 type TagSearch interface {
-	// Filter filters tag value ids base on tag filter expr, if fail return nil, else return tag value ids
-	Filter() (map[string]*tagFilterResult, error)
+	// Filter filters tag value ids base on tag filter expr, if fail return nil, else return tag value ids.
+	// result: tag key => tag filter result
+	Filter() (map[string]*flow.TagFilterResult, error)
 }
 
 // tagSearch implements TagSearch
@@ -47,8 +42,8 @@ type tagSearch struct {
 	condition  stmt.Expr
 	metadata   metadb.Metadata
 
-	result map[string]*tagFilterResult
-	tags   map[string]uint32 // for cache tag key
+	result map[string]*flow.TagFilterResult
+	tags   map[string]tag.KeyID // for cache tag key
 	err    error
 }
 
@@ -59,13 +54,13 @@ func newTagSearch(namespace, metricName string, condition stmt.Expr, metadata me
 		metricName: metricName,
 		condition:  condition,
 		metadata:   metadata,
-		tags:       make(map[string]uint32),
-		result:     make(map[string]*tagFilterResult),
+		tags:       make(map[string]tag.KeyID),
+		result:     make(map[string]*flow.TagFilterResult),
 	}
 }
 
 // Filter filters tag value ids base on tag filter expr, if fail return nil, else return tag value ids
-func (s *tagSearch) Filter() (map[string]*tagFilterResult, error) {
+func (s *tagSearch) Filter() (map[string]*flow.TagFilterResult, error) {
 	s.findTagValueIDsByExpr(s.condition)
 	if s.err != nil {
 		return nil, s.err
@@ -95,9 +90,9 @@ func (s *tagSearch) findTagValueIDsByExpr(expr stmt.Expr) {
 		}
 		if tagValueIDs != nil && !tagValueIDs.IsEmpty() {
 			// save atomic tag filter result
-			s.result[expr.Rewrite()] = &tagFilterResult{
-				tagKey:      tagKeyID,
-				tagValueIDs: tagValueIDs,
+			s.result[expr.Rewrite()] = &flow.TagFilterResult{
+				TagKeyID:    tagKeyID,
+				TagValueIDs: tagValueIDs,
 			}
 		}
 	case *stmt.ParenExpr:
@@ -116,7 +111,7 @@ func (s *tagSearch) findTagValueIDsByExpr(expr stmt.Expr) {
 }
 
 // getTagKeyID returns the tag key id by tag key
-func (s *tagSearch) getTagKeyID(tagKey string) (uint32, error) {
+func (s *tagSearch) getTagKeyID(tagKey string) (tag.KeyID, error) {
 	tagKeyID, ok := s.tags[tagKey]
 	if ok {
 		return tagKeyID, nil

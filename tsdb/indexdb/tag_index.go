@@ -18,6 +18,7 @@
 package indexdb
 
 import (
+	"github.com/lindb/lindb/pkg/encoding"
 	"github.com/lindb/roaring"
 
 	"github.com/lindb/lindb/series"
@@ -30,6 +31,7 @@ import (
 type TagIndex interface {
 	// GetGroupingScanner returns the grouping scanners based on series ids
 	GetGroupingScanner(seriesIDs *roaring.Bitmap) ([]series.GroupingScanner, error)
+	GetSeriesIDsArrayByTagValueIDs(tagValueIDs *roaring.Bitmap, seriesIDs []*roaring.Bitmap)
 	// buildInvertedIndex builds inverted index for tag value id
 	buildInvertedIndex(tagValueID uint32, seriesID uint32)
 	// getSeriesIDsByTagValueIDs returns series ids by tag value ids
@@ -118,6 +120,32 @@ func (index *tagIndex) getSeriesIDsByTagValueIDs(tagValueIDs *roaring.Bitmap) *r
 		}
 	}
 	return result
+}
+
+// getSeriesIDsByTagValueIDs returns series ids by tag value ids
+func (index *tagIndex) GetSeriesIDsArrayByTagValueIDs(tagValueIDs *roaring.Bitmap, result []*roaring.Bitmap) {
+	values := index.inverted.Values()
+	keys := index.inverted.Keys()
+	tagValueIDs.GetHighKeys()
+	it := tagValueIDs.Iterator()
+	idx := 0
+	if it.HasNext() {
+		tagValueID := it.Next()
+		highTagValueID := encoding.HighBits(tagValueID)
+		lowContainerIdx := keys.GetContainerIndex(highTagValueID)
+		if lowContainerIdx < 0 {
+			lowTagValueID := encoding.LowBits(tagValueID)
+			lowContainer := keys.GetContainerAtIndex(lowContainerIdx)
+			if lowContainer.Contains(lowTagValueID) {
+				lowIdx := lowContainer.Rank(lowTagValueID)
+				if result[idx] != nil {
+					result[idx].Or(values[lowContainerIdx][lowIdx-1])
+				} else {
+					result[idx] = values[lowContainerIdx][lowIdx-1]
+				}
+			}
+		}
+	}
 }
 
 // getAllSeriesIDs returns all series ids

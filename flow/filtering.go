@@ -21,8 +21,6 @@ import (
 	"github.com/lindb/roaring"
 
 	"github.com/lindb/lindb/pkg/timeutil"
-	"github.com/lindb/lindb/series/field"
-	"github.com/lindb/lindb/series/metric"
 )
 
 //go:generate mockgen -source=./filtering.go -destination=./filtering_mock.go -package=flow
@@ -31,11 +29,7 @@ import (
 type DataFilter interface {
 	// Filter filters the data based on metricIDs/fields/seriesIDs/timeRange,
 	// if finds data then returns filter result set, else returns nil.
-	Filter(metricID metric.ID,
-		seriesIDs *roaring.Bitmap,
-		timeRange timeutil.TimeRange,
-		fields field.Metas,
-	) ([]FilterResultSet, error)
+	Filter(executeCtx *StorageExecuteContext) ([]FilterResultSet, error)
 }
 
 // FilterResultSet represents the filter result set, loads data based on this interface.

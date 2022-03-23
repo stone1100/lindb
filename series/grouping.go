@@ -18,6 +18,7 @@
 package series
 
 import (
+	"github.com/lindb/lindb/series/tag"
 	"github.com/lindb/roaring"
 )
 
@@ -44,5 +45,5 @@ type GroupingScanner interface {
 // Grouping represents the getter grouping scanners for tag key group by query
 type Grouping interface {
 	// GetGroupingScanner returns the grouping scanners based on tag key ids and series ids
-	GetGroupingScanner(tagKeyID uint32, seriesIDs *roaring.Bitmap) ([]GroupingScanner, error)
+	GetGroupingScanner(tagKeyID tag.KeyID, seriesIDs *roaring.Bitmap) ([]GroupingScanner, error)
 }

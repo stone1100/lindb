@@ -33,7 +33,7 @@ type storageExecuteContext struct {
 	query    *stmt.Query
 	shardIDs []models.ShardID
 
-	tagFilterResult map[string]*tagFilterResult
+	tagFilterResult map[string]*flow.TagFilterResult
 
 	stats *models.StorageStats // storage query stats track for explain query
 }
@@ -60,7 +60,7 @@ func (ctx *storageExecuteContext) QueryStats() *models.StorageStats {
 }
 
 // setTagFilterResult sets tag filter result
-func (ctx *storageExecuteContext) setTagFilterResult(tagFilterResult map[string]*tagFilterResult) {
+func (ctx *storageExecuteContext) setTagFilterResult(tagFilterResult map[string]*flow.TagFilterResult) {
 	ctx.tagFilterResult = tagFilterResult
 }
 

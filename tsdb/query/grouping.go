@@ -19,6 +19,7 @@ package query
 
 import (
 	"encoding/binary"
+	"github.com/lindb/lindb/series/tag"
 	"sync"
 
 	"github.com/lindb/roaring"
@@ -26,19 +27,38 @@ import (
 	"github.com/lindb/lindb/series"
 )
 
+type TagGroupingContext struct {
+	tagKeys           []tag.KeyID
+	tagValuesHighKeys [][]uint16        // []uint16 is high keys for one tag key
+	tagValuesBitmaps  []*roaring.Bitmap // *roaring.Bitmap each tag value ids for on tag key
+}
+
+func NewTagGroupingContext(tagKeys []tag.KeyID, tagValuesBitmaps []*roaring.Bitmap) *TagGroupingContext {
+	ctx := &TagGroupingContext{
+		tagKeys:           tagKeys,
+		tagValuesHighKeys: make([][]uint16, len(tagKeys)),
+		tagValuesBitmaps:  tagValuesBitmaps,
+	}
+
+	for idx := range tagValuesBitmaps {
+		ctx.tagValuesHighKeys[idx] = tagValuesBitmaps[idx].GetHighKeys()
+	}
+	return ctx
+}
+
 // GroupingContext represents the context of group by query for tag keys
 // builds tags => series ids mapping, using such as counting sort
 // https://en.wikipedia.org/wiki/Counting_sort
 type GroupingContext struct {
-	tagKeys     []uint32
-	scanners    map[uint32][]series.GroupingScanner
+	tagKeys     []tag.KeyID
+	scanners    map[tag.KeyID][]series.GroupingScanner
 	tagValueIDs []*roaring.Bitmap // collect tag value ids for each group by tag key
 
 	mutex sync.Mutex
 }
 
 // NewGroupContext creates a GroupingContext
-func NewGroupContext(tagKeys []uint32, scanners map[uint32][]series.GroupingScanner) series.GroupingContext {
+func NewGroupContext(tagKeys []tag.KeyID, scanners map[tag.KeyID][]series.GroupingScanner) series.GroupingContext {
 	return &GroupingContext{
 		tagKeys:     tagKeys,
 		scanners:    scanners,

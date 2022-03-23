@@ -37,10 +37,10 @@ func TestWriteSumMetric(b *testing.T) {
 	timestamp := timeutil.Now()
 	cli := resty.New()
 	count := 0
-	for i := 0; i < 40; i++ {
+	for i := 0; i < 40000; i++ {
 		var buf bytes.Buffer
-		for j := 0; j < 20; j++ {
-			for k := 0; k < 4; k++ {
+		for j := 0; j < 1; j++ {
+			for k := 0; k < 1; k++ {
 				var brokerRow metric.BrokerRow
 				converter := metric.NewProtoConverter()
 				err := converter.ConvertTo(&protoMetricsV1.Metric{
