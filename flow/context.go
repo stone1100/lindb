@@ -72,10 +72,13 @@ type StorageExecuteContext struct {
 	DownSamplingSpecs aggregation.AggregatorSpecs
 	AggregatorSpecs   aggregation.AggregatorSpecs
 
+	// TagKeys cache all tag keys metadata for current query session
+	TagKeys map[string]tag.KeyID // for cache tag key
+
 	// result which after tag condition metadata filter
 	// set value in tag search, the where clause condition that user input
 	// first find all tag values in where clause, then do tag match
-	TagFilterResult map[string]*TagFilterResult
+	TagFilterResult map[string]*TagFilterResult // TODO rename to tag lookup???
 
 	// set value in plan stage when lookup group by tags.
 	GroupByTags      tag.Metas
@@ -443,6 +446,10 @@ type TimeSegmentResultSet struct {
 	FamilyTime int64
 	Source     timeutil.SlotRange
 	Interval   timeutil.Interval
+
+	TargetRange   timeutil.SlotRange
+	BaseTime      uint16
+	IntervalRatio uint16
 
 	FilterRS []FilterResultSet
 }
