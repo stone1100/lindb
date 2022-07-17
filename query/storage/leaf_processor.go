@@ -20,7 +20,6 @@ package storagequery
 import (
 	"errors"
 	"fmt"
-
 	"github.com/lindb/lindb/constants"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/metrics"
@@ -30,6 +29,8 @@ import (
 	"github.com/lindb/lindb/pkg/timeutil"
 	protoCommonV1 "github.com/lindb/lindb/proto/gen/v1/common"
 	"github.com/lindb/lindb/query"
+	"github.com/lindb/lindb/query/context"
+	"github.com/lindb/lindb/query/stage"
 	"github.com/lindb/lindb/rpc"
 	"github.com/lindb/lindb/sql/stmt"
 	"github.com/lindb/lindb/tsdb"
@@ -188,17 +189,27 @@ func (p *leafTaskProcessor) processDataSearch(
 		return query.ErrUnmarshalQuery
 	}
 
-	// execute leaf task
-	storageExecuteCtx := newStorageExecuteContext(db, shardIDs, &stmtQuery)
-	storageExecuteCtx.storageExecuteCtx.TaskCtx = ctx
-	queryFlow := NewStorageQueryFlow(
-		storageExecuteCtx.storageExecuteCtx,
-		req,
-		p.taskServerFactory,
-		leafNode,
-		db.ExecutorPool(),
-	)
-	exec := newStorageMetricQuery(queryFlow, storageExecuteCtx)
-	exec.Execute()
+	// execute leaf pipeline
+	pipeline := NewExecutePipeline()
+	pipeline.Execute(stage.NewMetadataLookupStage(&context.LeafExecuteContext{
+		TaskCtx:  ctx,
+		LeafNode: leafNode,
+		StorageExecuteContext: &flow.StorageExecuteContext{
+			Query:    &stmtQuery,
+			ShardIDs: shardIDs,
+		},
+		Database: db,
+	}))
+	//storageExecuteCtx := newStorageExecuteContext(db, shardIDs, &stmtQuery)
+	//storageExecuteCtx.storageExecuteCtx.TaskCtx = ctx
+	//queryFlow := NewStorageQueryFlow(
+	//	storageExecuteCtx.storageExecuteCtx,
+	//	req,
+	//	p.taskServerFactory,
+	//	leafNode,
+	//	db.ExecutorPool(),
+	//)
+	//exec := newStorageMetricQuery(queryFlow, storageExecuteCtx)
+	//exec.Execute()
 	return nil
 }

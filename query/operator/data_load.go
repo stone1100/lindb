@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"fmt"
 	"github.com/lindb/roaring"
 
 	"github.com/lindb/lindb/aggregation"
@@ -66,7 +67,7 @@ func (op *dataLoader) Execute() error {
 	loader.Load(op.executeCtx)
 	// release tsd decoder back to pool for re-use.
 	encoding.ReleaseTSDDecoder(op.executeCtx.Decoder)
-	// after load, need to reduce the aggregator's result to query flow.
-	op.executeCtx.Reduce(t.queryFlow.Reduce)
+
+	fmt.Println("xxxxxxjldfkdjlfsk")
 	return nil
 }

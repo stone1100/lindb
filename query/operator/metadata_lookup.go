@@ -45,6 +45,7 @@ func (op *metadataLookup) Execute() error {
 	}
 
 	op.executeCtx.MetricID = metricID
+	op.executeCtx.TagKeys = make(map[string]tag.KeyID)
 
 	if err := op.groupBy(); err != nil {
 		return err

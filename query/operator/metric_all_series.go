@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"fmt"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/series"
 	"github.com/lindb/lindb/tsdb"
@@ -15,7 +16,7 @@ type metricAllSeries struct {
 }
 
 func NewMetricAllSeries(executeCtx *flow.ShardExecuteContext, shard tsdb.Shard) Operator {
-	return &seriesFiltering{
+	return &metricAllSeries{
 		executeCtx: executeCtx,
 		indexDB:    shard.IndexDatabase(),
 	}
@@ -32,6 +33,7 @@ func (op *metricAllSeries) Execute() error {
 		// add series id without tags, maybe metric has too many series, but one series without tags
 		seriesIDs.Add(series.IDWithoutTags)
 	}
+	fmt.Println(seriesIDs.ToArray())
 	op.executeCtx.SeriesIDsAfterFiltering.Or(seriesIDs)
 	return nil
 }

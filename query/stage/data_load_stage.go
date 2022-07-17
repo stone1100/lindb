@@ -3,20 +3,26 @@ package stage
 import (
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/query/operator"
-	storagequery "github.com/lindb/lindb/query/storage"
 )
 
 type dataLoadStage struct {
+	baseStage
 	executeCtx *flow.DataLoadContext
 	segmentRS  *flow.TimeSegmentResultSet
 }
 
-func NewDataLoadStage() Stage {
-	return &dataLoadStage{}
+func NewDataLoadStage(executeCtx *flow.DataLoadContext, segmentRS *flow.TimeSegmentResultSet) Stage {
+	return &dataLoadStage{
+		baseStage: baseStage{
+			stageType: DataLoad,
+		},
+		executeCtx: executeCtx,
+		segmentRS:  segmentRS,
+	}
 }
 
-func (stage *dataLoadStage) Plan() storagequery.PlanNode {
-	execPlan := storagequery.NewRootPlanNode()
+func (stage *dataLoadStage) Plan() PlanNode {
+	execPlan := NewRootPlanNode()
 	shardExecuteCtx := stage.executeCtx.ShardExecuteCtx
 	// add segment data load node.
 	stage.segmentRS.IntervalRatio = uint16(shardExecuteCtx.StorageExecuteCtx.Query.IntervalRatio)
@@ -28,12 +34,14 @@ func (stage *dataLoadStage) Plan() storagequery.PlanNode {
 	stage.segmentRS.TargetRange = shardExecuteCtx.StorageExecuteCtx.CalcTargetSlotRange(familyTimeForQuery)
 
 	for idx := range stage.segmentRS.FilterRS {
-		execPlan.AddChild(storagequery.NewPlanNode(
+		execPlan.AddChild(NewPlanNode(
 			operator.NewDataLoader(stage.executeCtx, stage.segmentRS, stage.segmentRS.FilterRS[idx])))
+		execPlan.AddChild(NewPlanNode(operator.NewLeafReducer(stage.executeCtx)))
 	}
 	return execPlan
 }
 
 func (stage *dataLoadStage) NextStages() []Stage {
+	// terminal stage, return empty stages.
 	return nil
 }

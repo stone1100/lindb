@@ -1,6 +1,8 @@
 package operator
 
 import (
+	"errors"
+	"github.com/lindb/lindb/constants"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/tsdb"
 )
@@ -20,7 +22,7 @@ func NewDataFamilyReader(executeCtx *flow.ShardExecuteContext, family tsdb.DataF
 func (op *dataFamilyReader) Execute() error {
 	family := op.family
 	resultSet, err := family.Filter(op.executeCtx)
-	if err != nil {
+	if err != nil && !errors.Is(err, constants.ErrNotFound) {
 		return err
 	}
 	for _, rs := range resultSet {

@@ -1,30 +1,44 @@
 package stage
 
 import (
+	"fmt"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/models"
+	"github.com/lindb/lindb/query/context"
 	"github.com/lindb/lindb/query/operator"
-	storagequery "github.com/lindb/lindb/query/storage"
 	"github.com/lindb/lindb/tsdb"
 )
 
 type shardScanStage struct {
-	executeCtx *flow.ShardExecuteContext
-	shardID    models.ShardID
+	baseStage
+	leafCtx *context.LeafExecuteContext
 
-	database tsdb.Database
+	shardExecuteCtx *flow.ShardExecuteContext
+	shardID         models.ShardID
+
+	shard tsdb.Shard
 }
 
-func NewShardScanStage() Stage {
-	return &shardScanStage{}
+func NewShardScanStage(leafCtx *context.LeafExecuteContext,
+	shardExecuteCtx *flow.ShardExecuteContext, shardID models.ShardID,
+) Stage {
+	return &shardScanStage{
+		baseStage: baseStage{
+			stageType: ShardScan,
+		},
+		leafCtx:         leafCtx,
+		shardExecuteCtx: shardExecuteCtx,
+		shardID:         shardID,
+	}
 }
 
-func (stage *shardScanStage) Plan() storagequery.PlanNode {
-	execPlan := storagequery.NewRootPlanNode()
-	executeCtx := stage.executeCtx
-	queryStmt := executeCtx.StorageExecuteCtx.Query
+func (stage *shardScanStage) Plan() PlanNode {
+	execPlan := NewRootPlanNode()
+	shardExecuteCtx := stage.shardExecuteCtx
+	queryStmt := shardExecuteCtx.StorageExecuteCtx.Query
 	// if shard exist, add shard to query list
-	if shard, ok := stage.database.GetShard(stage.shardID); ok {
+	if shard, ok := stage.leafCtx.Database.GetShard(stage.shardID); ok {
+		stage.shard = shard
 		families := shard.GetDataFamilies(queryStmt.StorageInterval.Type(), queryStmt.TimeRange)
 		if len(families) == 0 {
 			// no data family found
@@ -32,41 +46,55 @@ func (stage *shardScanStage) Plan() storagequery.PlanNode {
 		}
 		if queryStmt.Condition != nil {
 			// add shard level series filtering node
-			execPlan.AddChild(storagequery.NewPlanNode(operator.NewSeriesFiltering(executeCtx, shard)))
+			execPlan.AddChild(NewPlanNode(operator.NewSeriesFiltering(shardExecuteCtx, shard)))
 		} else {
 			// add shard level all series lookup node
-			execPlan.AddChild(storagequery.NewPlanNode(operator.NewMetricAllSeries(executeCtx, shard)))
+			execPlan.AddChild(NewPlanNode(operator.NewMetricAllSeries(shardExecuteCtx, shard)))
 		}
 
 		for idx := range families {
 			family := families[idx]
 			// add data family reader node, found series ids which match condition.
-			execPlan.AddChild(storagequery.NewPlanNode(operator.NewDataFamilyReader(executeCtx, family)))
+			execPlan.AddChild(NewPlanNode(operator.NewDataFamilyReader(shardExecuteCtx, family)))
 		}
 
-		if stage.executeCtx.StorageExecuteCtx.Query.HasGroupBy() {
-			// 1. grouping, if it has grouping, do group by tag keys, else just split series ids as batch first,
+		if shardExecuteCtx.StorageExecuteCtx.Query.HasGroupBy() {
+			// if it has grouping, do group by tag keys, else just split series ids as batch first,
 			// get grouping context if it needs
 			// group context find task maybe change shardExecuteContext.SeriesIDsAfterFiltering value.
-			execPlan.AddChild(storagequery.NewPlanNode(operator.NewGroupingContextBuild(stage.executeCtx, shard)))
+			execPlan.AddChild(NewPlanNode(operator.NewGroupingContextBuild(shardExecuteCtx, shard)))
 		}
 	}
 	return execPlan
 }
 
 func (stage *shardScanStage) NextStages() (stages []Stage) {
+	if stage.shard == nil {
+		// shard not found
+		return
+	}
+	fmt.Println("xxxxdlkfjdlsfkjs")
 	// if not grouping found, series id is empty.
-	seriesIDs := stage.executeCtx.SeriesIDsAfterFiltering
+	shardExecuteContext := stage.shardExecuteCtx
+	seriesIDs := shardExecuteContext.SeriesIDsAfterFiltering
 	seriesIDsHighKeys := seriesIDs.GetHighKeys()
-	shardExecuteContext := stage.executeCtx
+	fmt.Println(seriesIDs.ToArray())
 
 	for seriesIDHighKeyIdx := range seriesIDsHighKeys {
 		// be carefully, need use new variable for variable scope problem(closures)
 		// ref: https://go.dev/doc/faq#closures_and_goroutines
 		highSeriesIDIdx := seriesIDHighKeyIdx
 		// grouping based on group by tag keys for each low series container
-		//TODO
-		stages = append(stages, NewGroupingStage())
+		lowSeriesIDs := seriesIDs.GetContainerAtIndex(highSeriesIDIdx)
+		dataLoadCtx := &flow.DataLoadContext{
+			ShardExecuteCtx:       shardExecuteContext,
+			LowSeriesIDsContainer: lowSeriesIDs,
+			SeriesIDHighKey:       seriesIDsHighKeys[highSeriesIDIdx],
+			IsMultiField:          len(shardExecuteContext.StorageExecuteCtx.Fields) > 1,
+			IsGrouping:            shardExecuteContext.StorageExecuteCtx.Query.HasGroupBy(),
+		}
+
+		stages = append(stages, NewGroupingStage(dataLoadCtx, stage.shard))
 
 	}
 	return stages
