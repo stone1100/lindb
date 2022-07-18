@@ -198,7 +198,9 @@ func (p *leafTaskProcessor) processDataSearch(
 			Query:    &stmtQuery,
 			ShardIDs: shardIDs,
 		},
-		Database: db,
+		Database:      db,
+		ServerFactory: p.taskServerFactory,
+		Req:           req,
 	}))
 	//storageExecuteCtx := newStorageExecuteContext(db, shardIDs, &stmtQuery)
 	//storageExecuteCtx.storageExecuteCtx.TaskCtx = ctx

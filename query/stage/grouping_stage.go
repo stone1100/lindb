@@ -30,13 +30,15 @@ func (stage *groupingStage) Plan() PlanNode {
 }
 
 func (stage *groupingStage) NextStages() (stages []Stage) {
-	if stage.executeCtx.HasGroupingData() {
-		// time segments sorted by family
-		timeSegments := stage.executeCtx.ShardExecuteCtx.TimeSegmentContext.GetTimeSegments()
-		for segmentIdx := range timeSegments {
-			// add data load stage based on time segment, one by one
-			stages = append(stages, NewDataLoadStage(stage.executeCtx, timeSegments[segmentIdx]))
-		}
+	if stage.executeCtx.IsGrouping && len(stage.executeCtx.GroupingSeriesAgg) == 0 {
+		// if not found any grouping tags, terminal.
+		return
+	}
+	// time segments sorted by family time
+	timeSegments := stage.executeCtx.ShardExecuteCtx.TimeSegmentContext.GetTimeSegments()
+	for segmentIdx := range timeSegments {
+		// add data load stage based on time segment, one by one
+		stages = append(stages, NewDataLoadStage(stage.executeCtx, timeSegments[segmentIdx]))
 	}
 	return
 }

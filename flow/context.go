@@ -93,7 +93,7 @@ type StorageExecuteContext struct {
 
 // collectGroupingTagValueIDs collects grouping tag value ids when does grouping operation.
 func (ctx *StorageExecuteContext) collectGroupingTagValueIDs(tagValueIDs []uint32) {
-	// need add lock, because build group concurrent
+	// need add lock, because build group concurrent(multi-shard)
 	ctx.mutex.Lock()
 	for idx, tagValueID := range tagValueIDs {
 		tIDs := ctx.GroupingTagValueIDs[idx]
