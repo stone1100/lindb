@@ -2,31 +2,33 @@ package stage
 
 import (
 	"github.com/lindb/lindb/flow"
+	"github.com/lindb/lindb/query/context"
 	"github.com/lindb/lindb/query/operator"
 	"github.com/lindb/lindb/tsdb"
 )
 
 type groupingStage struct {
 	baseStage
-	executeCtx *flow.DataLoadContext
-	shard      tsdb.Shard
+	leafExecuteCtx *context.LeafExecuteContext
+	executeCtx     *flow.DataLoadContext
+	shard          tsdb.Shard
 }
 
-func NewGroupingStage(executeCtx *flow.DataLoadContext, shard tsdb.Shard) Stage {
+func NewGroupingStage(leafExecuteCtx *context.LeafExecuteContext, executeCtx *flow.DataLoadContext, shard tsdb.Shard) Stage {
+	leafExecuteCtx.GroupingCtx.ForkGroupingTask()
 	return &groupingStage{
 		baseStage: baseStage{
 			stageType: Grouping,
 		},
-		executeCtx: executeCtx,
-		shard:      shard,
+		leafExecuteCtx: leafExecuteCtx,
+		executeCtx:     executeCtx,
+		shard:          shard,
 	}
 }
 
 func (stage *groupingStage) Plan() PlanNode {
-	execPlan := NewRootPlanNode()
 	// add find grouping node
-	execPlan.AddChild(NewPlanNode(operator.NewGroupingFind(stage.executeCtx)))
-	return execPlan
+	return NewPlanNode(operator.NewGroupingFind(stage.executeCtx))
 }
 
 func (stage *groupingStage) NextStages() (stages []Stage) {
@@ -41,4 +43,8 @@ func (stage *groupingStage) NextStages() (stages []Stage) {
 		stages = append(stages, NewDataLoadStage(stage.executeCtx, timeSegments[segmentIdx]))
 	}
 	return
+}
+
+func (stage *groupingStage) Complete() {
+	stage.leafExecuteCtx.GroupingCtx.CompleteGroupingTask()
 }

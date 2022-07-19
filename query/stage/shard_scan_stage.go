@@ -1,7 +1,6 @@
 package stage
 
 import (
-	"fmt"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/models"
 	"github.com/lindb/lindb/query/context"
@@ -11,7 +10,7 @@ import (
 
 type shardScanStage struct {
 	baseStage
-	leafCtx *context.LeafExecuteContext
+	leafExecuteCtx *context.LeafExecuteContext
 
 	shardExecuteCtx *flow.ShardExecuteContext
 	shardID         models.ShardID
@@ -19,14 +18,15 @@ type shardScanStage struct {
 	shard tsdb.Shard
 }
 
-func NewShardScanStage(leafCtx *context.LeafExecuteContext,
+func NewShardScanStage(leafExecuteCtx *context.LeafExecuteContext,
 	shardExecuteCtx *flow.ShardExecuteContext, shardID models.ShardID,
 ) Stage {
+	leafExecuteCtx.GroupingCtx.ForkGroupingTask()
 	return &shardScanStage{
 		baseStage: baseStage{
 			stageType: ShardScan,
 		},
-		leafCtx:         leafCtx,
+		leafExecuteCtx:  leafExecuteCtx,
 		shardExecuteCtx: shardExecuteCtx,
 		shardID:         shardID,
 	}
@@ -37,7 +37,7 @@ func (stage *shardScanStage) Plan() PlanNode {
 	shardExecuteCtx := stage.shardExecuteCtx
 	queryStmt := shardExecuteCtx.StorageExecuteCtx.Query
 	// if shard exist, add shard to query list
-	if shard, ok := stage.leafCtx.Database.GetShard(stage.shardID); ok {
+	if shard, ok := stage.leafExecuteCtx.Database.GetShard(stage.shardID); ok {
 		stage.shard = shard
 		families := shard.GetDataFamilies(queryStmt.StorageInterval.Type(), queryStmt.TimeRange)
 		if len(families) == 0 {
@@ -73,12 +73,10 @@ func (stage *shardScanStage) NextStages() (stages []Stage) {
 		// shard not found
 		return
 	}
-	fmt.Println("xxxxdlkfjdlsfkjs")
 	// if not grouping found, series id is empty.
 	shardExecuteContext := stage.shardExecuteCtx
 	seriesIDs := shardExecuteContext.SeriesIDsAfterFiltering
 	seriesIDsHighKeys := seriesIDs.GetHighKeys()
-	fmt.Println(seriesIDs.ToArray())
 
 	for seriesIDHighKeyIdx := range seriesIDsHighKeys {
 		// be carefully, need use new variable for variable scope problem(closures)
@@ -94,8 +92,11 @@ func (stage *shardScanStage) NextStages() (stages []Stage) {
 			IsGrouping:            shardExecuteContext.StorageExecuteCtx.Query.HasGroupBy(),
 		}
 
-		stages = append(stages, NewGroupingStage(dataLoadCtx, stage.shard))
-
+		stages = append(stages, NewGroupingStage(stage.leafExecuteCtx, dataLoadCtx, stage.shard))
 	}
 	return stages
+}
+
+func (stage *shardScanStage) Complete() {
+	stage.leafExecuteCtx.GroupingCtx.CompleteGroupingTask()
 }

@@ -26,8 +26,9 @@ func (t Type) String() string {
 }
 
 type Stage interface {
+	Type() Type
 	Plan() PlanNode
 	NextStages() []Stage
 	Submit(task func())
-	Type() Type
+	Complete()
 }

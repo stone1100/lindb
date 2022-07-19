@@ -4,13 +4,13 @@ package storagequery
 //
 //type storagePhysicalPlan struct {
 //	database   tsdb.Database
-//	executeCtx *flow.StorageExecuteContext
+//	executeCtx *flow.storageExecuteCtx
 //	planTree   stage.PlanNode // root
 //}
 //
 //func NewStoragePhysicalPlan(database tsdb.Database, shardIDs []models.ShardID, query *stmt.Query) *storagePhysicalPlan {
 //	return &storagePhysicalPlan{
-//		executeCtx: &flow.StorageExecuteContext{
+//		executeCtx: &flow.storageExecuteCtx{
 //			Query:    query,
 //			ShardIDs: shardIDs,
 //			TagKeys:  make(map[string]tag.KeyID),

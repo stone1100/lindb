@@ -11,14 +11,14 @@ package operator
 //}
 //
 //func (op *segmentLoad) Execute() error {
-//	queryIntervalRatio := op.executeCtx.ShardExecuteCtx.StorageExecuteCtx.Query.IntervalRatio
+//	queryIntervalRatio := op.executeCtx.ShardExecuteCtx.storageExecuteCtx.Query.IntervalRatio
 //	seriesIDs := op.executeCtx.ShardExecuteCtx.SeriesIDsAfterFiltering // after group result
 //	// calc base slot based on query interval and family time of storage
-//	queryInterval := op.executeCtx.ShardExecuteCtx.StorageExecuteCtx.Query.Interval
+//	queryInterval := op.executeCtx.ShardExecuteCtx.storageExecuteCtx.Query.Interval
 //	calc := queryInterval.Calculator()
 //	familyTimeForQuery := calc.CalcFamilyTime(op.segmentCtx.FamilyTime)
 //	baseSlot := uint16(calc.CalcSlot(op.segmentCtx.FamilyTime, familyTimeForQuery, queryInterval.Int64()))
-//	targetSlotRange := op.executeCtx.ShardExecuteCtx.StorageExecuteCtx.CalcTargetSlotRange(familyTimeForQuery)
+//	targetSlotRange := op.executeCtx.ShardExecuteCtx.storageExecuteCtx.CalcTargetSlotRange(familyTimeForQuery)
 //
 //	for idx, rs := range op.segmentCtx.FilterRS {
 //		// double filtering, maybe some series ids be filtered out when do grouping.

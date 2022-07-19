@@ -191,17 +191,11 @@ func (p *leafTaskProcessor) processDataSearch(
 
 	// execute leaf pipeline
 	pipeline := NewExecutePipeline()
-	pipeline.Execute(stage.NewMetadataLookupStage(&context.LeafExecuteContext{
-		TaskCtx:  ctx,
-		LeafNode: leafNode,
-		StorageExecuteContext: &flow.StorageExecuteContext{
-			Query:    &stmtQuery,
-			ShardIDs: shardIDs,
-		},
-		Database:      db,
-		ServerFactory: p.taskServerFactory,
-		Req:           req,
-	}))
+	leafExecuteCtx := context.NewLeafExecuteContext(ctx, &stmtQuery, req, p.taskServerFactory, leafNode, db)
+	pipeline.Execute(stage.NewMetadataLookupStage(leafExecuteCtx))
+	pipeline.Complete(func() {
+		leafExecuteCtx.SendResponse()
+	})
 	//storageExecuteCtx := newStorageExecuteContext(db, shardIDs, &stmtQuery)
 	//storageExecuteCtx.storageExecuteCtx.TaskCtx = ctx
 	//queryFlow := NewStorageQueryFlow(

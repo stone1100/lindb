@@ -15,3 +15,7 @@ func (stage *baseStage) Submit(task func()) {
 func (stage *baseStage) Type() Type {
 	return stage.stageType
 }
+
+func (stage *baseStage) Complete() {
+
+}
