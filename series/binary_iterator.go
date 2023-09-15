@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/lindb/common/models"
+
 	"github.com/lindb/lindb/pkg/encoding"
 	"github.com/lindb/lindb/pkg/stream"
 	"github.com/lindb/lindb/series/field"
@@ -72,7 +74,7 @@ type BinaryIterator struct {
 	fieldName field.Name
 	fieldType field.Type
 	reader    *stream.Reader
-	fieldIt   *BinaryFieldIterator
+	fieldIt   FieldIterator
 	data      []byte
 }
 
@@ -108,9 +110,13 @@ func (b *BinaryIterator) Next() (startTime int64, fieldIt FieldIterator) {
 	}
 	data := b.reader.ReadBytes(int(length))
 	if b.fieldIt == nil {
-		b.fieldIt = NewFieldIterator(data)
+		if b.fieldType == field.ExemplarField {
+			b.fieldIt = NewExemplarterator(data)
+		} else {
+			b.fieldIt = NewFieldIterator(data)
+		}
 	} else {
-		b.fieldIt.reset(data)
+		b.fieldIt.Reset(data)
 	}
 	fieldIt = b.fieldIt
 	return
@@ -123,18 +129,18 @@ func (b *BinaryIterator) MarshalBinary() ([]byte, error) {
 // BinaryFieldIterator implements FieldIterator interface.
 type BinaryFieldIterator struct {
 	reader *stream.Reader
-	pIt    *BinaryPrimitiveIterator
+	pIt    PrimitiveIterator
 }
 
 // NewFieldIterator create field iterator based on binary data
-func NewFieldIterator(data []byte) *BinaryFieldIterator {
+func NewFieldIterator(data []byte) FieldIterator {
 	it := &BinaryFieldIterator{
 		reader: stream.NewReader(data),
 	}
 	return it
 }
 
-func (it *BinaryFieldIterator) reset(data []byte) {
+func (it *BinaryFieldIterator) Reset(data []byte) {
 	it.reader.Reset(data)
 }
 
@@ -163,7 +169,7 @@ type BinaryPrimitiveIterator struct {
 	tsd     *encoding.TSDDecoder
 }
 
-func NewPrimitiveIterator(aggType field.AggType, tsd *encoding.TSDDecoder) *BinaryPrimitiveIterator {
+func NewPrimitiveIterator(aggType field.AggType, tsd *encoding.TSDDecoder) PrimitiveIterator {
 	return &BinaryPrimitiveIterator{
 		aggType: aggType,
 		tsd:     tsd,
@@ -195,5 +201,82 @@ func (pi *BinaryPrimitiveIterator) Next() (timeSlot int, value float64) {
 	timeSlot = int(pi.tsd.Slot())
 	val := pi.tsd.Value()
 	value = math.Float64frombits(val)
+	return
+}
+
+func (pi *BinaryPrimitiveIterator) NextExemplar() (timeSlot int, exemplar *models.Exemplar) {
+	return
+}
+
+type BinaryExemplarIterator struct {
+	reader *stream.Reader
+	pIt    PrimitiveIterator
+}
+
+func NewExemplarterator(data []byte) FieldIterator {
+	it := &BinaryExemplarIterator{
+		reader: stream.NewReader(data),
+	}
+	return it
+}
+
+func (it *BinaryExemplarIterator) Reset(data []byte) {
+	it.reader.Reset(data)
+}
+
+func (it *BinaryExemplarIterator) HasNext() bool { return !it.reader.Empty() }
+
+func (it *BinaryExemplarIterator) Next() PrimitiveIterator {
+	aggType := field.AggType(it.reader.ReadByte())
+	// only one agg result
+	it.pIt = NewExemplarPrimitiveIterator(aggType, it.reader)
+	return it.pIt
+}
+
+func (it *BinaryExemplarIterator) MarshalBinary() ([]byte, error) {
+	return nil, fmt.Errorf("not support")
+}
+
+type BinaryExemplarPrimitiveIterator struct {
+	aggType field.AggType
+	reader  *stream.Reader
+
+	count int
+	index int
+}
+
+func NewExemplarPrimitiveIterator(aggType field.AggType, reader *stream.Reader) PrimitiveIterator {
+	return &BinaryExemplarPrimitiveIterator{
+		aggType: aggType,
+		reader:  reader,
+		count:   int(reader.ReadVarint32()),
+	}
+}
+
+func (pi *BinaryExemplarPrimitiveIterator) Reset(aggType field.AggType, data []byte) {}
+
+func (pi *BinaryExemplarPrimitiveIterator) AggType() field.AggType {
+	return pi.aggType
+}
+
+func (pi *BinaryExemplarPrimitiveIterator) HasNext() bool {
+	ok := pi.index < pi.count
+	pi.index++
+	return ok
+}
+
+func (pi *BinaryExemplarPrimitiveIterator) Next() (timeSlot int, value float64) {
+	return
+}
+
+func (pi *BinaryExemplarPrimitiveIterator) NextExemplar() (timeSlot int, exemplar *models.Exemplar) {
+	fmt.Println("next binary exemplar")
+	timeSlot = int(pi.reader.ReadVarint32())
+	size := pi.reader.ReadVarint32()
+	exemplar = &models.Exemplar{}
+	exemplar.TraceID = string(pi.reader.ReadBytes(int(size)))
+	size = pi.reader.ReadVarint32()
+	exemplar.SpanID = string(pi.reader.ReadBytes(int(size)))
+	exemplar.Duration = pi.reader.ReadVarint64()
 	return
 }

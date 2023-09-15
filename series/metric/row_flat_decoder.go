@@ -163,9 +163,11 @@ func (itr *BrokerRowFlatDecoder) rebuild() error {
 		}
 	}
 
-	if itr.limits.EnableFieldsCheck() && itr.originRow.SimpleFieldsLen() > int(itr.limits.MaxFieldsPerMetric) {
+	// check field limit(simple fields + exemplars)
+	if itr.limits.EnableFieldsCheck() && itr.originRow.SimpleFieldsLen()+itr.rowBuilder.ExemplarsLen() > int(itr.limits.MaxFieldsPerMetric) {
 		return constants.ErrTooManyFields
 	}
+	// simple fields
 	simpleFieldItr := itr.originRow.NewSimpleFieldIterator()
 	for simpleFieldItr.HasNext() {
 		fieldName := simpleFieldItr.NextRawName()
@@ -173,13 +175,30 @@ func (itr *BrokerRowFlatDecoder) rebuild() error {
 			return constants.ErrFieldNameTooLong
 		}
 		if err := itr.rowBuilder.AddSimpleField(
-			simpleFieldItr.NextRawName(),
+			fieldName,
 			simpleFieldItr.NextRawType(),
 			simpleFieldItr.NextValue(),
 		); err != nil {
 			return err
 		}
 	}
+	// exemplars
+	exemplarItr := itr.originRow.NewExemplarIterator()
+	for exemplarItr.HasNext() {
+		fieldName := exemplarItr.NextRawName()
+		if itr.limits.EnableFieldNameLengthCheck() && len(fieldName) > itr.limits.MaxFieldNameLength {
+			return constants.ErrFieldNameTooLong
+		}
+		if err := itr.rowBuilder.AddExemplar(
+			fieldName,
+			exemplarItr.NextTraceID(),
+			exemplarItr.NextSpanID(),
+			exemplarItr.NextDuration(),
+		); err != nil {
+			return err
+		}
+	}
+
 	compoundFieldItr, ok := itr.originRow.NewCompoundFieldIterator()
 	if !ok {
 		goto End

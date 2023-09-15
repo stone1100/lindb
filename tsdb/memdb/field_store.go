@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"math"
 
+	"github.com/lindb/common/models"
 	commonencoding "github.com/lindb/common/pkg/encoding"
 	"github.com/lindb/common/pkg/logger"
 
@@ -66,6 +67,7 @@ type fStoreINTF interface {
 	// if time slot out of current time window, need compress time window then resets the current buffer
 	// if it has same time slot in current buffer, need do rollup operation by field type
 	Write(fieldType field.Type, slotIndex uint16, value float64)
+	WriteExemplar(slotIndex uint16, traceID, spanID []byte, duration int64)
 	// FlushFieldTo flushes field store data into kv store, need align slot range in metric level
 	FlushFieldTo(tableFlusher metricsdata.Flusher, fieldMeta field.Meta, flushCtx *flushContext) error
 	// Load loads field series data.
@@ -92,6 +94,11 @@ func newFieldStore(buf []byte, fieldID field.ID) fStoreINTF {
 // GetFieldID returns the field id of metric level
 func (fs *fieldStore) GetFieldID() field.ID {
 	return field.ID(stream.ReadUint16(fs.buf, fieldOffset))
+}
+
+func (fs *fieldStore) WriteExemplar(slotIndex uint16, traceID, spanID []byte, duration int64) {
+	// exemplar store logic
+	// do nothing
 }
 
 func (fs *fieldStore) Write(fieldType field.Type, slotIndex uint16, value float64) {
@@ -138,7 +145,7 @@ func (fs *fieldStore) FlushFieldTo(tableFlusher metricsdata.Flusher, fieldMeta f
 	}
 
 	encoder := tableFlusher.GetEncoder(flushCtx.fieldIdx)
-	encoder.RestWithStartTime(flushCtx.SlotRange.Start)
+	encoder.RestWithStartTime(flushCtx.Start)
 
 	data, err := fs.merge(fieldMeta.Type, encoder, decoder, fs.getStart(), flushCtx.SlotRange, false)
 	if err != nil {
@@ -286,6 +293,10 @@ func (fs *fieldStore) Load(ctx *flow.DataLoadContext,
 // GetValue returns value by time slot, if it hasn't, return false.
 func (fs *fieldStore) GetValue(slot uint16) (float64, bool) {
 	return fs.getCurrentValue(fs.getStart(), slot)
+}
+
+func (fs *fieldStore) GetExemplar(slot uint16) (exemplar *models.Exemplar, ok bool) {
+	return nil, false
 }
 
 // slotRange returns time slot range in current/compress buffer

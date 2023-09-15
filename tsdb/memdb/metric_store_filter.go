@@ -49,6 +49,7 @@ func (ms *metricStore) Filter(shardExecuteContext *flow.ShardExecuteContext, db 
 		return nil, fmt.Errorf("%w when Filter, familyTime: %d, fields: %s",
 			constants.ErrSeriesIDNotFound, familyTime, fields.String())
 	}
+	fmt.Println("metric found")
 
 	// returns the filter result set
 	return []flow.FilterResultSet{
@@ -102,6 +103,7 @@ func (rs *memFilterResultSet) Load(ctx *flow.DataLoadContext) flow.DataLoader {
 	// 1. get high container index by the high key of series ID
 	highContainerIdx := rs.store.keys.GetContainerIndex(ctx.SeriesIDHighKey)
 	if highContainerIdx < 0 {
+		fmt.Println("series load....1")
 		// if high container index < 0(series ID not exist) return it
 		return nil
 	}
@@ -109,8 +111,10 @@ func (rs *memFilterResultSet) Load(ctx *flow.DataLoadContext) flow.DataLoader {
 	lowContainer := rs.store.keys.GetContainerAtIndex(highContainerIdx)
 	foundSeriesIDs := lowContainer.And(ctx.LowSeriesIDsContainer)
 	if foundSeriesIDs.GetCardinality() == 0 {
+		fmt.Println("series load....2")
 		return nil
 	}
+	fmt.Println("series load....3")
 
 	// must use lowContainer from store, because get series index based on container
 	return newMetricStoreLoader(rs.db, lowContainer, rs.store.values[highContainerIdx], *rs.store.slotRange, rs.fields)

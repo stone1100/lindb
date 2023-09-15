@@ -18,6 +18,8 @@
 package fields
 
 import (
+	"fmt"
+
 	"github.com/lindb/lindb/aggregation/function"
 	"github.com/lindb/lindb/pkg/collections"
 	"github.com/lindb/lindb/series"
@@ -73,11 +75,14 @@ func (f *dynamicField) SetValue(fieldSeries series.Iterator) {
 	}
 	var fieldValues *collections.FloatArray
 	ok := false
+	fmt.Println("set value fff..1")
 	for fieldSeries.HasNext() {
 		startTime, it := fieldSeries.Next()
 		if it == nil {
+			fmt.Println("set value fff..2")
 			continue
 		}
+		fmt.Println("set value fff..4")
 		for it.HasNext() {
 			pIt := it.Next()
 			aggType := pIt.AggType()
@@ -86,9 +91,11 @@ func (f *dynamicField) SetValue(fieldSeries series.Iterator) {
 				fieldValues = collections.NewFloatArray(f.capacity)
 				f.fields[aggType] = fieldValues
 			}
+			fmt.Println("set value fff..3")
 			for pIt.HasNext() {
 				slot, val := pIt.Next()
 				idx := ((int64(slot)*f.interval + startTime) - f.startTime) / f.interval
+				fmt.Println("set field value.......")
 				fieldValues.SetValue(int(idx), val)
 			}
 		}

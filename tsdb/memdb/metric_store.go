@@ -124,9 +124,9 @@ func (ms *metricStore) AddField(fieldID field.ID, fieldType field.Type) {
 
 func (ms *metricStore) mStoreSize() int {
 	var size int
-	size += cap(ms.MetricStore.values)*24 + 24
-	for idx := range ms.MetricStore.values {
-		size += cap(ms.MetricStore.values[idx])*8 + 24
+	size += cap(ms.values)*24 + 24
+	for idx := range ms.values {
+		size += cap(ms.values[idx])*8 + 24
 	}
 	return size
 }

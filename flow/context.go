@@ -20,6 +20,7 @@ package flow
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -181,6 +182,7 @@ func NewTimeSegmentContext() *TimeSegmentContext {
 
 // AddFilterResultSet adds a result set after data filtering.
 func (ts *TimeSegmentContext) AddFilterResultSet(interval timeutil.Interval, rs FilterResultSet) {
+	fmt.Println("add result set... ")
 	familyTime := rs.FamilyTime()
 	segment, ok := ts.TimeSegments[familyTime]
 	if !ok {
@@ -203,6 +205,7 @@ func (ts *TimeSegmentContext) AddFilterResultSet(interval timeutil.Interval, rs 
 
 // GetTimeSegments returns
 func (ts *TimeSegmentContext) GetTimeSegments() (rs TimeSegmentContexts) {
+	fmt.Println(rs)
 	for _, segment := range ts.TimeSegments {
 		rs = append(rs, segment)
 	}

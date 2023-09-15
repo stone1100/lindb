@@ -18,7 +18,10 @@
 package aggregation
 
 import (
+	"fmt"
 	"strconv"
+
+	"github.com/lindb/common/models"
 
 	"github.com/lindb/lindb/aggregation/fields"
 	"github.com/lindb/lindb/aggregation/function"
@@ -41,6 +44,7 @@ type Expression interface {
 	Eval(timeSeries series.GroupedIterator)
 	// ResultSet returns the eval result, returns field name(alias) => series data.
 	ResultSet() map[string]*collections.FloatArray
+	Exemplars() map[string]map[int64][]*models.Exemplar
 	// Reset resets the Expression context for reusing.
 	Reset()
 }
@@ -54,6 +58,8 @@ type expression struct {
 
 	fieldStore map[field.Name]fields.Field
 	resultSet  map[string]*collections.FloatArray // field => series
+
+	exemplars map[string]map[int64][]*models.Exemplar
 }
 
 // NewExpression creates an Expression instance.
@@ -97,6 +103,10 @@ func (e *expression) ResultSet() map[string]*collections.FloatArray {
 	return e.resultSet
 }
 
+func (e *expression) Exemplars() map[string]map[int64][]*models.Exemplar {
+	return e.exemplars
+}
+
 // prepare the field store.
 func (e *expression) prepare(timeSeries series.GroupedIterator) {
 	if timeSeries == nil {
@@ -106,9 +116,20 @@ func (e *expression) prepare(timeSeries series.GroupedIterator) {
 		fieldSeries := timeSeries.Next()
 		fieldName := fieldSeries.FieldName()
 		fieldType := fieldSeries.FieldType()
-		f := fields.NewDynamicField(fieldType, e.timeRange.Start, e.interval, e.pointCount)
-		e.fieldStore[fieldName] = f
-		f.SetValue(fieldSeries)
+		if fieldType == field.ExemplarField {
+			fmt.Println(fieldType.String())
+			exemplar := fields.NewExemplarField(fieldType, e.timeRange.Start, e.interval, e.pointCount)
+			exemplar.SetValue(fieldSeries)
+			if e.exemplars == nil {
+				e.exemplars = make(map[string]map[int64][]*models.Exemplar)
+			}
+			// FIXME:
+			e.exemplars[string(fieldName)] = exemplar.GetExemplars()
+		} else {
+			f := fields.NewDynamicField(fieldType, e.timeRange.Start, e.interval, e.pointCount)
+			e.fieldStore[fieldName] = f
+			f.SetValue(fieldSeries)
+		}
 	}
 }
 
@@ -138,6 +159,7 @@ func (e *expression) eval(parentFunc *stmt.CallExpr, expr stmt.Expr) []*collecti
 	case *stmt.FieldExpr:
 		fieldName := ex.Name
 		if fieldValues, ok := e.fieldStore[field.Name(fieldName)]; ok {
+			fmt.Println("found ex......")
 			// tests if it has func with field
 			if parentFunc == nil {
 				return fieldValues.GetDefaultValues()

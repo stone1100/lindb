@@ -24,6 +24,8 @@ import (
 	"math"
 	"sync"
 
+	"github.com/lindb/common/models"
+
 	"github.com/lindb/lindb/pkg/bit"
 	"github.com/lindb/lindb/pkg/bufioutil"
 	"github.com/lindb/lindb/pkg/stream"
@@ -41,6 +43,8 @@ var (
 type TSDValueGetter interface {
 	// GetValue returns value by time slot, if it hasn't, return false.
 	GetValue(slot uint16) (float64, bool)
+
+	GetExemplar(slot uint16) (*models.Exemplar, bool)
 }
 
 var (
@@ -312,6 +316,10 @@ func (d *TSDDecoder) GetValue(slot uint16) (float64, bool) {
 		return 0, false
 	}
 	return math.Float64frombits(d.Value()), true
+}
+
+func (d *TSDDecoder) GetExemplar(slot uint16) (exemplar *models.Exemplar, ok bool) {
+	return nil, false
 }
 
 func (d *TSDDecoder) Slot() uint16 {

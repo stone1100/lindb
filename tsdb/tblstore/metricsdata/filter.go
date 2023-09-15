@@ -20,7 +20,6 @@ package metricsdata
 import (
 	"github.com/lindb/roaring"
 
-	"github.com/lindb/lindb/constants"
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/kv/version"
 	"github.com/lindb/lindb/pkg/timeutil"
@@ -72,7 +71,9 @@ func (f *metricsDataFilter) Filter(
 	}
 	// not founds
 	if len(rs) == 0 {
-		return nil, constants.ErrNotFound
+		return nil, nil
+		// FIXME:
+		//constants.ErrNotFound
 	}
 	return
 }

@@ -18,6 +18,7 @@
 package memdb
 
 import (
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -215,8 +216,24 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 		}
 		afterWrite(writtenLinFieldSize)
 	}
-	compoundFieldItr, ok := row.NewCompoundFieldIterator()
 
+	exemplarItr := row.NewExemplarIterator()
+	for exemplarItr.HasNext() {
+		writtenLinFieldSize, err := md.writeExemplar(
+			row.SlotIndex,
+			row.FieldIDs[fieldIDIdx],
+			exemplarItr.NextTraceID(),
+			exemplarItr.NextSpanID(),
+			exemplarItr.NextDuration(),
+			mStore, tStore,
+		)
+		if err != nil {
+			return err
+		}
+		afterWrite(writtenLinFieldSize)
+	}
+
+	compoundFieldItr, ok := row.NewCompoundFieldIterator()
 	var (
 		err                 error
 		writtenLinFieldSize int
@@ -316,6 +333,28 @@ func (md *memoryDatabase) writeLinField(
 	return writtenSize + fStore.Capacity() - beforeFStoreCapacity, nil
 }
 
+func (md *memoryDatabase) writeExemplar(
+	slotIndex uint16,
+	fieldID field.ID, traceID, spanID []byte, duration int64,
+	mStore mStoreINTF, tStore tStoreINTF,
+) (writtenSize int, err error) {
+	fStore, ok := tStore.GetFStore(fieldID)
+	if !ok {
+		fStore = newExemplarStore(fieldID)
+		writtenSize += fStore.Capacity()
+		beforeTStoreSize := tStore.Capacity()
+		tStore.InsertFStore(fStore)
+		writtenSize += tStore.Capacity() - beforeTStoreSize
+		// if write data success, add field into metric level for cache
+		mStore.AddField(fieldID, field.ExemplarField)
+
+		md.numOfSeries.Inc()
+	}
+	beforeFStoreCapacity := fStore.Capacity()
+	fStore.WriteExemplar(slotIndex, traceID, spanID, duration)
+	return writtenSize + fStore.Capacity() - beforeFStoreCapacity, nil
+}
+
 // FlushFamilyTo flushes all data related to the family from metric-stores to builder.
 func (md *memoryDatabase) FlushFamilyTo(flusher metricsdata.Flusher) error {
 	// waiting current writing complete
@@ -346,6 +385,7 @@ func (md *memoryDatabase) Filter(shardExecuteContext *flow.ShardExecuteContext) 
 		querySlotRange := shardExecuteContext.StorageExecuteCtx.CalcSourceSlotRange(md.familyTime)
 		storageSlotRange := mStore.GetSlotRange()
 		if !storageSlotRange.Overlap(querySlotRange) {
+			fmt.Println("time out")
 			return nil, nil
 		}
 		return mStore.Filter(shardExecuteContext, md)

@@ -172,7 +172,11 @@ func (a *seriesAggregator) getAggregator(segmentStartTime int64) FieldAggregator
 	agg := a.aggregates[0]
 	if agg == nil {
 		targetEnd := (a.queryTimeRange.End - a.queryTimeRange.Start) / a.queryInterval.Int64()
-		agg = NewFieldAggregator(a.aggSpec, a.queryTimeRange.Start, 0, int(targetEnd))
+		if a.fieldType == field.ExemplarField {
+			agg = NewExemplarAggregator(a.aggSpec, a.queryTimeRange.Start, 0, int(targetEnd))
+		} else {
+			agg = NewFieldAggregator(a.aggSpec, a.queryTimeRange.Start, 0, int(targetEnd))
+		}
 		a.aggregates[0] = agg
 	}
 	return agg
@@ -188,9 +192,13 @@ func (a *seriesAggregator) GetAggregator(segmentStartTime int64) FieldAggregator
 	baseSlot := int((segmentStartTime - a.queryTimeRange.Start) / storageInterval.Int64())
 	targetStart := (baseSlot + int(sourceRange.Start)) / a.intervalRatio
 	targetEnd := (baseSlot + int(sourceRange.End)) / a.intervalRatio
-	// create field aggregator based on start time of query and query slot range(based on family range)
-	agg := NewFieldAggregator(a.aggSpec, a.queryTimeRange.Start, targetStart, targetEnd)
-
+	var agg FieldAggregator
+	if a.fieldType == field.ExemplarField {
+		agg = NewExemplarAggregator(a.aggSpec, a.queryTimeRange.Start, targetStart, targetEnd)
+	} else {
+		// create field aggregator based on start time of query and query slot range(based on family range)
+		agg = NewFieldAggregator(a.aggSpec, a.queryTimeRange.Start, targetStart, targetEnd)
+	}
 	a.mutex.Lock()
 	a.aggregates = append(a.aggregates, agg)
 	a.mutex.Unlock()

@@ -20,6 +20,8 @@ package series
 import (
 	enc "encoding"
 
+	"github.com/lindb/common/models"
+
 	"github.com/lindb/lindb/series/field"
 )
 
@@ -59,6 +61,7 @@ type FieldIterator interface {
 	Next() PrimitiveIterator
 	// BinaryMarshaler marshals the data.
 	enc.BinaryMarshaler
+	Reset(data []byte)
 }
 
 // PrimitiveIterator represents an iterator over a primitive field, iterator points data of primitive field.
@@ -69,4 +72,8 @@ type PrimitiveIterator interface {
 	HasNext() bool
 	// Next returns the data point in the iteration.
 	Next() (timeSlot int, value float64)
+
+	NextExemplar() (timeSlot int, exemplar *models.Exemplar)
+
+	Reset(aggType field.AggType, data []byte)
 }

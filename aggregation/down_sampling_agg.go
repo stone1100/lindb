@@ -21,6 +21,8 @@ import (
 	"math"
 	"sync"
 
+	"github.com/lindb/common/models"
+
 	"github.com/lindb/lindb/pkg/encoding"
 	"github.com/lindb/lindb/pkg/timeutil"
 	"github.com/lindb/lindb/series/field"
@@ -148,5 +150,31 @@ func DownSampling(
 		}
 		targetSlot := (baseSlot + int(movingSourceSlot)) / intervalRatio // (base slot + source slot(down sampling))/ratio => target
 		emitValue(targetSlot, value)
+	}
+}
+
+func DownSamplingExemplar(
+	source, target timeutil.SlotRange, ratio uint16, baseSlot int, getter encoding.TSDValueGetter,
+	emitValue func(targetPos int, exemplar *models.Exemplar),
+) {
+	start := target.Start
+	end := target.End
+	intervalRatio := int(ratio)
+	for movingSourceSlot := source.Start; movingSourceSlot <= source.End; movingSourceSlot++ {
+		exemplar, ok := getter.GetExemplar(movingSourceSlot)
+		if !ok {
+			// no data, goto next loop
+			continue
+		}
+		if movingSourceSlot < start {
+			// target slot < query start slot, goto next loop
+			continue
+		}
+		if movingSourceSlot > end {
+			// exhausted when target slot > query end slot
+			break
+		}
+		targetSlot := (baseSlot + int(movingSourceSlot)) / intervalRatio // (base slot + source slot(down sampling))/ratio => target
+		emitValue(targetSlot, exemplar)
 	}
 }

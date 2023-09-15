@@ -47,6 +47,7 @@ const (
 	Max
 	Last
 	First
+	Exemplar
 )
 
 // Aggregate aggregates two float64 values into one
@@ -79,6 +80,7 @@ const (
 	LastField
 	HistogramField // alias for sumField, only visible for tsdb
 	FirstField
+	ExemplarField
 )
 
 // String returns the field type's string value
@@ -96,6 +98,8 @@ func (t Type) String() string {
 		return "histogram"
 	case FirstField:
 		return "first"
+	case ExemplarField:
+		return "exemplar"
 	default:
 		return "unknown"
 	}
@@ -133,6 +137,8 @@ func (t Type) DownSamplingFunc() function.FuncType {
 		return function.First
 	case HistogramField:
 		return function.Sum
+	case ExemplarField:
+		return function.Exemplar
 	default:
 		return function.Unknown
 	}
@@ -178,6 +184,13 @@ func (t Type) IsFuncSupported(funcType function.FuncType) bool {
 	case HistogramField:
 		switch funcType {
 		case function.Sum:
+			return true
+		default:
+			return false
+		}
+	case ExemplarField:
+		switch funcType {
+		case function.Exemplar:
 			return true
 		default:
 			return false

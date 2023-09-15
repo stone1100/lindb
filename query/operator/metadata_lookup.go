@@ -132,6 +132,7 @@ func (op *metadataLookup) buildField() {
 		op.executeCtx.DownSamplingSpecs[fieldIdx] = f.DownSampling
 		op.executeCtx.AggregatorSpecs[fieldIdx] = f.Aggregator
 	}
+	fmt.Println(op.fields)
 }
 
 // selectList plans the select list from down sampling aggregation specification
@@ -199,6 +200,7 @@ func (op *metadataLookup) planField(parentFunc *stmt.CallExpr, fieldMeta field.M
 	fieldID := fieldMeta.ID
 	aggregator, exist := op.fields[fieldID]
 	if !exist {
+		fmt.Println("KKKKKKK")
 		aggregator = &aggregation.Aggregator{}
 		aggregator.DownSampling = aggregation.NewAggregatorSpec(fieldMeta.Name, fieldType)
 		aggregator.Aggregator = aggregation.NewAggregatorSpec(fieldMeta.Name, fieldType)

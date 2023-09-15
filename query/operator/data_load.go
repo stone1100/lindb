@@ -29,6 +29,7 @@ import (
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/pkg/encoding"
 	"github.com/lindb/lindb/pkg/timeutil"
+	"github.com/lindb/lindb/series/field"
 )
 
 // dataLoad represents load data operator by grouping context.
@@ -59,6 +60,7 @@ func (op *dataLoad) Execute() error {
 	// double filtering, maybe some series ids be filtered out when do grouping.
 	// filter logic: forward_reader.go -> GetGroupingScanner
 	if roaring.FastAnd(seriesIDs, op.rs.SeriesIDs()).IsEmpty() {
+		fmt.Println("no sereis")
 		return nil
 	}
 	loader := op.rs.Load(op.executeCtx)
@@ -76,14 +78,23 @@ func (op *dataLoad) Execute() error {
 	op.executeCtx.Decoder = encoding.GetTSDDecoder()
 	op.executeCtx.DownSampling = func(slotRange timeutil.SlotRange, lowSeriesIdx uint16, fieldIdx int, getter encoding.TSDValueGetter) {
 		seriesAggregator := op.executeCtx.GetSeriesAggregator(lowSeriesIdx, fieldIdx)
-
+		fieldType := seriesAggregator.GetFieldType()
 		agg := seriesAggregator.GetAggregator(familyTime)
 		op.foundSeries++
-		aggregation.DownSampling(
-			slotRange, targetSlotRange, queryIntervalRatio, baseSlot,
-			getter,
-			agg.AggregateBySlot,
-		)
+
+		if fieldType == field.ExemplarField {
+			aggregation.DownSamplingExemplar(
+				slotRange, targetSlotRange, queryIntervalRatio, baseSlot,
+				getter,
+				agg.AggregateExemplarBySlot,
+			)
+		} else {
+			aggregation.DownSampling(
+				slotRange, targetSlotRange, queryIntervalRatio, baseSlot,
+				getter,
+				agg.AggregateBySlot,
+			)
+		}
 	}
 
 	// loads the metric data by given series id from load result.

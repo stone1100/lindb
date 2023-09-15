@@ -18,6 +18,7 @@
 package memdb
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/lindb/lindb/flow"
@@ -137,13 +138,16 @@ func (ts *timeSeriesStore) load(loadCtx *flow.DataLoadContext,
 ) {
 	fieldLength := len(ts.fStoreNodes)
 	fieldCount := len(fields)
+	fmt.Printf("%d=%d,kkkkl...", fieldLength, fieldCount)
 	j := 0
 	for i := 0; i < fieldLength; i++ {
+		fmt.Println("time series load")
 		fieldStore := ts.fStoreNodes[i]
 		queryFieldID := fields[j].ID
 		storeFieldID := fieldStore.GetFieldID()
 		switch {
 		case storeFieldID == queryFieldID:
+			fmt.Println("load....")
 			// load field data
 			fieldStore.Load(loadCtx, seriesIdxFromQuery, j, fields[j].Type, slotRange)
 			j++ // goto next query field id

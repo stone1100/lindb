@@ -18,7 +18,10 @@
 package aggregation
 
 import (
+	"fmt"
 	"math"
+
+	"github.com/lindb/common/models"
 
 	"github.com/lindb/lindb/pkg/collections"
 	"github.com/lindb/lindb/series"
@@ -33,6 +36,7 @@ type FieldAggregator interface {
 	Aggregate(it series.FieldIterator)
 	// AggregateBySlot aggregates the field series into current aggregator.
 	AggregateBySlot(slot int, value float64)
+	AggregateExemplarBySlot(slot int, exemplar *models.Exemplar)
 	// ResultSet returns the result set of field aggregator.
 	ResultSet() (startTime int64, it series.FieldIterator)
 	// reset aggregator context for reusing.
@@ -76,9 +80,12 @@ func (a *fieldAggregator) ResultSet() (startTime int64, it series.FieldIterator)
 
 // Aggregate aggregates the field series into current aggregator
 func (a *fieldAggregator) Aggregate(it series.FieldIterator) {
+	fmt.Println("field agg")
 	for it.HasNext() {
+		fmt.Println("field agg 1")
 		pIt := it.Next()
 		for pIt.HasNext() {
+			fmt.Println("field agg 2")
 			slot, value := pIt.Next()
 			a.AggregateBySlot(slot, value)
 		}
@@ -91,6 +98,7 @@ func (a *fieldAggregator) AggregateBySlot(slot int, value float64) {
 	if math.IsInf(value, 1) {
 		return
 	}
+	fmt.Printf("field agg..... slot,slot=%d,value=%f\n", slot, value)
 	pos := slot - a.start
 	for idx, aggType := range a.aggTypes {
 		values := a.fieldSeriesList[idx]
@@ -107,6 +115,9 @@ func (a *fieldAggregator) AggregateBySlot(slot int, value float64) {
 			}
 		}
 	}
+}
+func (a *fieldAggregator) AggregateExemplarBySlot(slot int, exemplar *models.Exemplar) {
+	// do nothing
 }
 
 // reset aggregator context for reusing.

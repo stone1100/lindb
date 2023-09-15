@@ -18,6 +18,8 @@
 package operator
 
 import (
+	"fmt"
+
 	"github.com/lindb/lindb/flow"
 	"github.com/lindb/lindb/tsdb"
 )
@@ -40,7 +42,10 @@ func NewDataFamilyRead(executeCtx *flow.ShardExecuteContext, family tsdb.DataFam
 func (op *dataFamilyRead) Execute() error {
 	family := op.family
 	resultSet, err := family.Filter(op.executeCtx)
+	fmt.Println("famil read...")
+	fmt.Println(resultSet)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	for _, rs := range resultSet {

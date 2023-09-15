@@ -57,7 +57,9 @@ func (stage *groupingStage) Plan() PlanNode {
 
 // NextStages returns the stages after grouping.
 func (stage *groupingStage) NextStages() (stages []Stage) {
+	fmt.Println("group stage")
 	if stage.executeCtx.IsGrouping && len(stage.executeCtx.GroupingSeriesAgg) == 0 {
+		fmt.Println("no group agg")
 		// if not found any grouping tags, terminal.
 		return
 	}
@@ -65,6 +67,7 @@ func (stage *groupingStage) NextStages() (stages []Stage) {
 	timeSegments := stage.executeCtx.ShardExecuteCtx.TimeSegmentContext.GetTimeSegments()
 	dlCtx := stage.executeCtx
 	for segmentIdx := range timeSegments {
+		fmt.Println("nnnnn......")
 		dataLoadCtx := *dlCtx // copy data load context, because data load context not thread safe
 		// add data load stage based on time segment, one by one
 		stages = append(stages, NewDataLoadStage(stage.leafExecuteCtx, &dataLoadCtx, timeSegments[segmentIdx]))

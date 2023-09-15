@@ -32,6 +32,7 @@ const (
 	Quantile
 	Stddev
 	Rate
+	Exemplar
 )
 
 // String return the function's name

@@ -142,6 +142,7 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 	groupByKeys := statement.GroupBy
 	groupByKeysLength := len(groupByKeys)
 	fieldsMap := make(map[string]struct{})
+	seriesMap := make(map[string]*commonmodels.Series)
 	timeRange := ctx.timeRange
 	interval := ctx.interval
 	if ctx.groupAgg != nil {
@@ -157,14 +158,8 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 			// do expression eval
 			expression.Eval(it)
 
-			// result order by/limit
-			orderBy.Push(aggregation.NewOrderByRow(it.Tags(), expression.ResultSet()))
-		}
-
-		rows := orderBy.ResultSet()
-		for _, row := range rows {
 			var tags map[string]string
-			tagValues, fields := row.ResultSet()
+			tagValues := it.Tags()
 			if groupByKeysLength > 0 {
 				tagValues := tag.SplitTagValues(tagValues)
 				if groupByKeysLength != len(tagValues) {
@@ -178,7 +173,20 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 				}
 			}
 			timeSeries := commonmodels.NewSeries(tags, tagValues)
+			//TODO: modify it
+			timeSeries.Exemplars = expression.Exemplars()
+
 			resultSet.AddSeries(timeSeries)
+			seriesMap[tagValues] = timeSeries
+
+			// result order by/limit
+			orderBy.Push(aggregation.NewOrderByRow(tagValues, expression.ResultSet()))
+		}
+
+		rows := orderBy.ResultSet()
+		for _, row := range rows {
+			tagValues, fields := row.ResultSet()
+			timeSeries := seriesMap[tagValues]
 			for fieldName, values := range fields {
 				if values == nil {
 					continue
@@ -204,6 +212,7 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 		return resultSet.Series[i].TagValues < resultSet.Series[j].TagValues
 	})
 
+	resultSet.Namespace = statement.Namespace
 	resultSet.MetricName = statement.MetricName
 	resultSet.GroupBy = statement.GroupBy
 	for fName := range fieldsMap {

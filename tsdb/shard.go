@@ -296,6 +296,20 @@ func (s *shard) lookupRowMeta(row *metric.StorageRow) (err error) {
 		row.FieldIDs = append(row.FieldIDs, fieldID)
 	}
 
+	// set exemplar id
+	exemplarItr := row.NewExemplarIterator()
+	var exemplarID field.ID
+	for exemplarItr.HasNext() {
+		if exemplarID, err = s.metadata.MetadataDatabase().GenFieldID(
+			namespace, metricName,
+			exemplarItr.NextName(),
+			field.ExemplarField, limits); err != nil {
+			// TODO: only ignore invalid field?
+			return err
+		}
+		row.FieldIDs = append(row.FieldIDs, exemplarID)
+	}
+
 	compoundFieldItr, ok := row.NewCompoundFieldIterator()
 	if !ok {
 		goto Done

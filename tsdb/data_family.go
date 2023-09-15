@@ -397,11 +397,14 @@ func (f *dataFamily) MemDBSize() int64 {
 func (f *dataFamily) Filter(executeCtx *flow.ShardExecuteContext) (resultSet []flow.FilterResultSet, err error) {
 	f.lastReadTime.Store(fasttime.UnixMilliseconds())
 	memRS, err := f.memoryFilter(executeCtx)
+	fmt.Println(memRS)
 	if err != nil {
+		fmt.Println("err1")
 		return nil, err
 	}
 	fileRS, err := f.fileFilter(executeCtx)
 	if err != nil {
+		fmt.Println("err2")
 		return nil, err
 	}
 	resultSet = append(resultSet, memRS...)
@@ -462,7 +465,9 @@ func (f *dataFamily) memoryFilter(shardExecuteContext *flow.ShardExecuteContext)
 		if err != nil {
 			return err
 		}
+		fmt.Println("add memory failuter")
 		resultSet = append(resultSet, rs...)
+		fmt.Println(resultSet)
 		return nil
 	}
 	f.mutex.Lock()
@@ -504,6 +509,7 @@ func (f *dataFamily) fileFilter(shardExecuteContext *flow.ShardExecuteContext) (
 		}
 		r, err := newReaderFunc(reader.Path(), value)
 		if err != nil {
+			fmt.Println("err3")
 			return nil, err
 		}
 		storageSlotRange := r.GetTimeRange()
