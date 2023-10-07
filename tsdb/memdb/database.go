@@ -19,6 +19,7 @@ package memdb
 
 import (
 	"io"
+	"math"
 	"sync"
 	"time"
 
@@ -96,7 +97,7 @@ type memoryDatabase struct {
 	familyTime int64
 	name       string
 
-	mStores *MetricBucketStore // metric id => mStoreINTF
+	tStores []TimeSeriesBucket // metric id => mStoreINTF
 	buf     DataPointBuffer
 
 	writeCondition sync.WaitGroup
@@ -119,10 +120,13 @@ func NewMemoryDatabase(cfg MemoryDatabaseCfg) (MemoryDatabase, error) {
 		familyTime:  cfg.FamilyTime,
 		name:        cfg.Name,
 		buf:         buf,
-		mStores:     NewMetricBucketStore(),
+		tStores:     make([]TimeSeriesBucket, math.MaxUint8),
 		allocSize:   *atomic.NewInt64(0),
 		createdTime: fasttime.UnixNano(),
 		statistics:  metrics.NewMemDBStatistics(cfg.Name),
+	}
+	for idx := range db.tStores {
+		db.tStores[idx] = NewTimeSeriesBucket()
 	}
 	return db, nil
 }
@@ -140,32 +144,34 @@ func (md *memoryDatabase) IsReadOnly() bool {
 func (md *memoryDatabase) FamilyTime() int64 { return md.familyTime }
 
 func (md *memoryDatabase) metricBucketSize() int {
-	var size int
-	size += cap(md.mStores.values)*24 + 24
-	for idx := range md.mStores.values {
-		size += cap(md.mStores.values[idx])*8 + 24
-	}
-	return size
+	// var size int
+	// size += cap(md.mStores.values)*24 + 24
+	// for idx := range md.mStores.values {
+	// 	size += cap(md.mStores.values[idx])*8 + 24
+	// }
+	// return size
+	// FIXME:
+	return 0
 }
 
 // getOrCreateMStore returns the mStore by metricHash.
-func (md *memoryDatabase) getOrCreateMStore(metricID metric.ID) (mStore mStoreINTF) {
-	metricKey := uint32(metricID)
-
-	if mStore0, ok := md.mStores.Get(metricKey); ok {
-		// found metric store in current memory database
-		return mStore0
-	}
-	// not found need create new metric store
-	beforeMetricBucketSize := md.metricBucketSize()
-	mStore = newMetricStore()
-	// add metric-store size
-	md.allocSize.Add(int64(mStore.Capacity()))
-	// add metric-bucket increased
-	md.mStores.Put(metricKey, mStore)
-	md.allocSize.Add(int64(md.metricBucketSize() - beforeMetricBucketSize))
-	return
-}
+// func (md *memoryDatabase) getOrCreateMStore(metricID metric.ID) (mStore mStoreINTF) {
+// 	metricKey := uint32(metricID)
+//
+// 	if mStore0, ok := md.mStores.Get(metricKey); ok {
+// 		// found metric store in current memory database
+// 		return mStore0
+// 	}
+// 	// not found need create new metric store
+// 	beforeMetricBucketSize := md.metricBucketSize()
+// 	mStore = newMetricStore()
+// 	// add metric-store size
+// 	md.allocSize.Add(int64(mStore.Capacity()))
+// 	// add metric-bucket increased
+// 	md.mStores.Put(metricKey, mStore)
+// 	md.allocSize.Add(int64(md.metricBucketSize() - beforeMetricBucketSize))
+// 	return
+// }
 
 // AcquireWrite acquires writing data points
 func (md *memoryDatabase) AcquireWrite() {
@@ -183,22 +189,14 @@ func (md *memoryDatabase) WithLock() (release func()) {
 }
 
 func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
-	mStore := md.getOrCreateMStore(row.MetricID)
 	var size int
 	defer md.allocSize.Add(int64(size))
 
-	beforeMStoreCapacity := mStore.Capacity()
-	tStore, created := mStore.GetOrCreateTStore(row.SeriesID)
-	if created {
-		size += tStore.Capacity()
-		size += mStore.Capacity() - beforeMStoreCapacity
-	}
-	written := false
+	seriesID := row.SeriesID
 	var fieldIDIdx = 0
 	afterWrite := func(writtenLinFieldSize int) {
 		fieldIDIdx++
 		size += writtenLinFieldSize
-		written = true
 	}
 
 	simpleFieldItr := row.NewSimpleFieldIterator()
@@ -208,7 +206,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 			row.FieldIDs[fieldIDIdx],
 			simpleFieldItr.NextType(),
 			simpleFieldItr.NextValue(),
-			mStore, tStore,
+			seriesID,
 		)
 		if err != nil {
 			return err
@@ -230,7 +228,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 		writtenLinFieldSize, err = md.writeLinField(
 			row.SlotIndex, row.FieldIDs[fieldIDIdx],
 			field.MinField, compoundFieldItr.Min(),
-			mStore, tStore)
+			seriesID)
 		if err != nil {
 			return err
 		}
@@ -241,7 +239,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 		writtenLinFieldSize, err = md.writeLinField(
 			row.SlotIndex, row.FieldIDs[fieldIDIdx],
 			field.MaxField, compoundFieldItr.Max(),
-			mStore, tStore)
+			seriesID)
 		if err != nil {
 			return err
 		}
@@ -251,7 +249,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	writtenLinFieldSize, err = md.writeLinField(
 		row.SlotIndex, row.FieldIDs[fieldIDIdx],
 		field.SumField, compoundFieldItr.Sum(),
-		mStore, tStore)
+		seriesID)
 	if err != nil {
 		return err
 	}
@@ -261,7 +259,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	writtenLinFieldSize, err = md.writeLinField(
 		row.SlotIndex, row.FieldIDs[fieldIDIdx],
 		field.SumField, compoundFieldItr.Count(),
-		mStore, tStore)
+		seriesID)
 	if err != nil {
 		return err
 	}
@@ -274,7 +272,7 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 		writtenLinFieldSize, err = md.writeLinField(
 			row.SlotIndex, row.FieldIDs[fieldIDIdx],
 			field.HistogramField, compoundFieldItr.NextValue(),
-			mStore, tStore)
+			seriesID)
 		if err != nil {
 			return err
 		}
@@ -282,34 +280,28 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	}
 
 End:
-	if written {
-		mStore.SetSlot(row.SlotIndex)
-	}
 	return nil
 }
 
 func (md *memoryDatabase) writeLinField(
 	slotIndex uint16,
 	fieldID field.ID, fieldType field.Type, fieldValue float64,
-	mStore mStoreINTF, tStore tStoreINTF,
+	seriesID uint32,
 ) (writtenSize int, err error) {
-	fStore, ok := tStore.GetFStore(fieldID)
-	if !ok {
-		buf, err := md.buf.AllocPage()
-		if err != nil {
+	tStore := md.tStores[fieldID]
+	fStore, err := tStore.GetOrCreateFStore(seriesID, func() (fStoreINTF, error) {
+		buf, err0 := md.buf.AllocPage()
+		if err0 != nil {
 			md.statistics.AllocatePageFailures.Incr()
-			return 0, err
+			return nil, err0
 		}
 		md.statistics.AllocatedPages.Incr()
-		fStore = newFieldStore(buf, fieldID)
-		writtenSize += fStore.Capacity()
-		beforeTStoreSize := tStore.Capacity()
-		tStore.InsertFStore(fStore)
-		writtenSize += tStore.Capacity() - beforeTStoreSize
-		// if write data success, add field into metric level for cache
-		mStore.AddField(fieldID, fieldType)
-
+		fStore := newFieldStore(buf, fieldID)
 		md.numOfSeries.Inc()
+		return fStore, nil
+	})
+	if err != nil {
+		return 0, err
 	}
 	beforeFStoreCapacity := fStore.Capacity()
 	fStore.Write(fieldType, slotIndex, fieldValue)
@@ -321,18 +313,19 @@ func (md *memoryDatabase) FlushFamilyTo(flusher metricsdata.Flusher) error {
 	// waiting current writing complete
 	md.writeCondition.Wait()
 
-	var flushCtx flushContext
-	if err := md.mStores.WalkEntry(func(metricID uint32, value mStoreINTF) error {
-		flushCtx.metricID = metricID
-		if err := value.FlushMetricsDataTo(flusher, &flushContext{
-			metricID: metricID,
-		}); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
+	//FIXME:
+	// var flushCtx flushContext
+	// if err := md.mStores.WalkEntry(func(metricID uint32, value mStoreINTF) error {
+	// 	flushCtx.metricID = metricID
+	// 	if err := value.FlushMetricsDataTo(flusher, &flushContext{
+	// 		metricID: metricID,
+	// 	}); err != nil {
+	// 		return err
+	// 	}
+	// 	return nil
+	// }); err != nil {
+	// 	return err
+	// }
 	return flusher.Close()
 }
 
@@ -342,14 +335,14 @@ func (md *memoryDatabase) Filter(shardExecuteContext *flow.ShardExecuteContext) 
 	md.rwMutex.RLock()
 	defer md.rwMutex.RUnlock()
 
-	if mStore, ok := md.mStores.Get(uint32(shardExecuteContext.StorageExecuteCtx.MetricID)); ok {
-		querySlotRange := shardExecuteContext.StorageExecuteCtx.CalcSourceSlotRange(md.familyTime)
-		storageSlotRange := mStore.GetSlotRange()
-		if !storageSlotRange.Overlap(querySlotRange) {
-			return nil, nil
-		}
-		return mStore.Filter(shardExecuteContext, md)
-	}
+	// if mStore, ok := md.mStores.Get(uint32(shardExecuteContext.StorageExecuteCtx.MetricID)); ok {
+	// 	querySlotRange := shardExecuteContext.StorageExecuteCtx.CalcSourceSlotRange(md.familyTime)
+	// 	storageSlotRange := mStore.GetSlotRange()
+	// 	if !storageSlotRange.Overlap(querySlotRange) {
+	// 		return nil, nil
+	// 	}
+	// 	return mStore.Filter(shardExecuteContext, md)
+	// }
 	return nil, nil
 }
 
@@ -373,7 +366,8 @@ func (md *memoryDatabase) NumOfMetrics() int {
 	md.rwMutex.RLock()
 	defer md.rwMutex.RUnlock()
 
-	return md.mStores.Size()
+	// return md.mStores.Size()
+	return 0
 }
 
 // NumOfSeries returns the number of series.

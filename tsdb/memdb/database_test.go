@@ -150,7 +150,7 @@ func TestMemoryDatabase_Write(t *testing.T) {
 	assert.Zero(t, md.MemSize())
 
 	// load mock
-	md.mStores.Put(uint32(1), mockMStore)
+	// md.mStores.Put(uint32(1), mockMStore)
 	// case 1: write ok
 	gomock.InOrder(
 		tStore.EXPECT().GetFStore(gomock.Any()).Return(fStore, true),
@@ -269,7 +269,7 @@ func TestMemoryDatabase_Write_err(t *testing.T) {
 	md := mdINTF.(*memoryDatabase)
 
 	// load mock
-	md.mStores.Put(uint32(1), mockMStore)
+	// md.mStores.Put(uint32(1), mockMStore)
 	// case 1: write ok
 	tStore.EXPECT().GetFStore(gomock.Any()).Return(nil, false)
 
@@ -318,7 +318,7 @@ func TestMemoryDatabase_WriteHistogram_Err(t *testing.T) {
 	mdINTF, err := NewMemoryDatabase(cfg)
 	assert.NoError(t, err)
 	md := mdINTF.(*memoryDatabase)
-	md.mStores.Put(uint32(1), mockMStore)
+	// md.mStores.Put(uint32(1), mockMStore)
 
 	row := protoToStorageRow(&protoMetricsV1.Metric{
 		Name:      "test1",
@@ -393,7 +393,7 @@ func TestMemoryDatabase_FlushFamilyTo(t *testing.T) {
 	flusher.EXPECT().Close().Return(nil).AnyTimes()
 	// mock mStore
 	mockMStore := NewMockmStoreINTF(ctrl)
-	md.mStores.Put(uint32(3333), mockMStore)
+	// md.mStores.Put(uint32(3333), mockMStore)
 
 	// case 1: flusher ok
 	mockMStore.EXPECT().FlushMetricsDataTo(gomock.Any(), gomock.Any()).Return(nil)
@@ -456,7 +456,7 @@ func TestMemoryDatabase_Filter(t *testing.T) {
 	// mock mStore
 	mockMStore := NewMockmStoreINTF(ctrl)
 	mockMStore.EXPECT().Filter(gomock.Any(), gomock.Any()).Return([]flow.FilterResultSet{}, nil)
-	md.mStores.Put(uint32(3333), mockMStore)
+	// md.mStores.Put(uint32(3333), mockMStore)
 	mockMStore.EXPECT().GetSlotRange().Return(&timeutil.SlotRange{Start: 0, End: 60})
 	rs, err = md.Filter(ctx)
 	assert.NoError(t, err)
@@ -470,4 +470,29 @@ func TestMemoryDatabase_Filter(t *testing.T) {
 
 	err = md.Close()
 	assert.NoError(t, err)
+}
+
+func BenchmarkWrite(b *testing.B) {
+	cfg := MemoryDatabaseCfg{
+		BufferMgr: NewBufferManager(b.TempDir()),
+	}
+	mdINTF, err := NewMemoryDatabase(cfg)
+	if err != nil {
+		b.Fail()
+	}
+
+	row := protoToStorageRow(&protoMetricsV1.Metric{
+		Name:      "test1",
+		Namespace: "ns",
+		SimpleFields: []*protoMetricsV1.SimpleField{
+			{Name: "f1", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
+		},
+	})
+	fmt.Println(b.N)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		row.SeriesID = uint32(i)
+		row.FieldIDs = []field.ID{10}
+		mdINTF.WriteRow(row)
+	}
 }

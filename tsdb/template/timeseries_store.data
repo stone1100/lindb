@@ -1,0 +1,8 @@
+[
+    {
+        "package":"memdb",
+        "type":"TimeSeries",
+        "nil":"nil",
+        "value":"fStoreINTF"
+    }
+]

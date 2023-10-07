@@ -3,28 +3,28 @@
 //
 // Source: int_map.tmpl
 
-package indexdb
+package memdb
 
 import (
 	"github.com/lindb/roaring"
 )
 
-// InvertedStore represents int map using roaring bitmap
-type InvertedStore struct {
-	putCount int                 // insert count
-	keys     *roaring.Bitmap     // store all keys
-	values   [][]*roaring.Bitmap // store all values by high/low key
+// TimeSeriesStore represents int map using roaring bitmap
+type TimeSeriesStore struct {
+	putCount int             // insert count
+	keys     *roaring.Bitmap // store all keys
+	values   [][]fStoreINTF  // store all values by high/low key
 }
 
-// NewInvertedStore creates a int map
-func NewInvertedStore() *InvertedStore {
-	return &InvertedStore{
+// NewTimeSeriesStore creates a int map
+func NewTimeSeriesStore() *TimeSeriesStore {
+	return &TimeSeriesStore{
 		keys: roaring.New(),
 	}
 }
 
 // Get returns value by key, if exist returns it, else returns nil, false
-func (m *InvertedStore) Get(key uint32) (*roaring.Bitmap, bool) {
+func (m *TimeSeriesStore) Get(key uint32) (fStoreINTF, bool) {
 	if len(m.values) == 0 {
 		return nil, false
 	}
@@ -42,11 +42,11 @@ func (m *InvertedStore) Get(key uint32) (*roaring.Bitmap, bool) {
 }
 
 // Put puts the value by key
-func (m *InvertedStore) Put(key uint32, value *roaring.Bitmap) {
+func (m *TimeSeriesStore) Put(key uint32, value fStoreINTF) {
 	defer m.tryOptimize()
 	if len(m.values) == 0 {
 		// if values is empty, append new low container directly
-		m.values = append(m.values, []*roaring.Bitmap{value})
+		m.values = append(m.values, []fStoreINTF{value})
 
 		m.keys.Add(key)
 		return
@@ -58,7 +58,7 @@ func (m *InvertedStore) Put(key uint32, value *roaring.Bitmap) {
 		// insert operation, insert high values
 		stores = append(stores, nil)
 		copy(stores[highIdx+1:], stores[highIdx:len(stores)-1])
-		stores[highIdx] = []*roaring.Bitmap{value}
+		stores[highIdx] = []fStoreINTF{value}
 		m.values = stores
 
 		m.keys.Add(key)
@@ -77,7 +77,7 @@ func (m *InvertedStore) Put(key uint32, value *roaring.Bitmap) {
 }
 
 // tryOptimize optimizes the roaring bitmap when inserted in every 100
-func (m *InvertedStore) tryOptimize() {
+func (m *TimeSeriesStore) tryOptimize() {
 	m.putCount++
 	if m.putCount%100 == 0 {
 		m.keys.RunOptimize()
@@ -85,22 +85,22 @@ func (m *InvertedStore) tryOptimize() {
 }
 
 // Keys returns the all keys
-func (m *InvertedStore) Keys() *roaring.Bitmap {
+func (m *TimeSeriesStore) Keys() *roaring.Bitmap {
 	return m.keys
 }
 
 // Values returns the all values
-func (m *InvertedStore) Values() [][]*roaring.Bitmap {
+func (m *TimeSeriesStore) Values() [][]fStoreINTF {
 	return m.values
 }
 
 // Size returns the size of keys
-func (m *InvertedStore) Size() int {
+func (m *TimeSeriesStore) Size() int {
 	return int(m.keys.GetCardinality())
 }
 
 // WalkEntry walks each kv entry via fn.
-func (m *InvertedStore) WalkEntry(fn func(key uint32, value *roaring.Bitmap) error) error {
+func (m *TimeSeriesStore) WalkEntry(fn func(key uint32, value fStoreINTF) error) error {
 	values := m.values
 	keys := m.keys
 	highKeys := keys.GetHighKeys()

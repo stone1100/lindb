@@ -19,3 +19,4 @@ tmpl -data=@metric_bucket.data -o=../memdb/metric_bucket_store.gen.go int_map.tm
 tmpl -data=@metric_bucket_test.data -o=../memdb/metric_bucket_store.gen_test.go int_map_test.tmpl
 tmpl -data=@metric_store.data -o=../memdb/metric_store.gen.go int_map.tmpl
 tmpl -data=@metric_store_test.data -o=../memdb/metric_store.gen_test.go int_map_test.tmpl
+tmpl -data=@timeseries_store.data -o=../memdb/timeseries_store.gen.go int_map.tmpl
