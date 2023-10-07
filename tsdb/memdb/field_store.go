@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"math"
 
-	commonencoding "github.com/lindb/common/pkg/encoding"
 	"github.com/lindb/common/pkg/logger"
 
 	"github.com/lindb/lindb/flow"
@@ -195,7 +194,13 @@ func (fs *fieldStore) compact(fieldType field.Type, startTime uint16) {
 		memDBLogger.Error("compact field store data err", logger.Error(err))
 	}
 
-	fs.compress = commonencoding.MustCopy(fs.compress, data)
+	if cap(fs.compress) < len(data) {
+		fs.compress = make([]byte, len(data))
+	}
+	fs.compress = fs.compress[:len(data)]
+	copy(fs.compress, data)
+
+	// fs.compress = commonencoding.MustCopy(fs.compress, data)
 	// !!!!! IMPORTANT: need reset current write buffer
 	fs.resetBuf()
 }

@@ -77,6 +77,8 @@ type Database interface {
 	SetLimits(limits *models.Limits)
 	// GetLimits returns database's limits.
 	GetLimits() *models.Limits
+
+	memdb() *memoryDatabase
 }
 
 // database implements Database for storing families,
@@ -97,6 +99,8 @@ type database struct {
 	statistics *metrics.DatabaseStatistics
 
 	flushChecker DataFlushChecker
+
+	db *memoryDatabase
 }
 
 // newDatabase creates the database instance
@@ -137,6 +141,7 @@ func newDatabase(
 		isFlushing:     *atomic.NewBool(false),
 		flushCondition: sync.NewCond(&sync.Mutex{}),
 		statistics:     metrics.NewDatabaseStatistics(databaseName),
+		db:             newMemoryDatabse(),
 	}
 	dbPath, err0 := createDatabasePath(databaseName)
 	if err0 != nil {
@@ -403,4 +408,8 @@ func (db *database) Drop() error {
 		return err
 	}
 	return nil
+}
+
+func (db *database) memdb() *memoryDatabase {
+	return db.db
 }

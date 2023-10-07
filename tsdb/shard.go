@@ -110,6 +110,13 @@ type shard struct {
 	logger         logger.Logger
 
 	statistics *metrics.ShardStatistics
+
+	ids    map[uint64]int32
+	lock   sync.RWMutex
+	seq    atomic.Int32
+	metric map[string]*Schema
+
+	mdb *memoryDatabase
 }
 
 // newShard creates shard instance, if shard path exist then load shard data for init.
@@ -136,6 +143,9 @@ func newShard(
 		flushCondition: sync.NewCond(&sync.Mutex{}),
 		statistics:     metrics.NewShardStatistics(db.Name(), strconv.Itoa(int(shardID))),
 		logger:         logger.GetLogger("TSDB", "Shard"),
+		mdb:            db.memdb(),
+		ids:            make(map[uint64]int32),
+		metric:         make(map[string]*Schema),
 	}
 	// try cleanup history dirty write buffer
 	createdShard.bufferMgr.Cleanup()
@@ -258,19 +268,12 @@ func (s *shard) lookupRowMeta(row *metric.StorageRow) (err error) {
 		namespace = string(row.NameSpace())
 	}
 
-	row.MetricID, err = s.metadata.MetadataDatabase().GenMetricID(namespace, metricName, limits)
-	if err != nil {
-		return err
-	}
 	var isCreated bool
 	if row.TagsLen() == 0 {
 		// if metric without tags, uses default series id(0)
 		row.SeriesID = series.IDWithoutTags
 	} else {
-		row.SeriesID, isCreated, err = s.indexDB.GetOrCreateSeriesID(namespace, metricName, row.MetricID, row.TagsHash(), limits)
-		if err != nil {
-			return err
-		}
+		row.SeriesID = uint32(s.GetSeriesID(row.TagsHash()))
 	}
 	if isCreated {
 		// if series id is new, need build inverted index
@@ -286,13 +289,9 @@ func (s *shard) lookupRowMeta(row *metric.StorageRow) (err error) {
 	simpleFieldItr := row.NewSimpleFieldIterator()
 	var fieldID field.ID
 	for simpleFieldItr.HasNext() {
-		if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-			namespace, metricName,
+		fieldID = s.mdb.GetFieldID(metricName,
 			simpleFieldItr.NextName(),
-			simpleFieldItr.NextType(), limits); err != nil {
-			// TODO: only ignore invalid field?
-			return err
-		}
+		)
 		row.FieldIDs = append(row.FieldIDs, fieldID)
 	}
 
@@ -302,39 +301,23 @@ func (s *shard) lookupRowMeta(row *metric.StorageRow) (err error) {
 	}
 	// min
 	if compoundFieldItr.Min() > 0 {
-		if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-			namespace, metricName, compoundFieldItr.HistogramMinFieldName(), field.MinField, limits); err != nil {
-			return err
-		}
+		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramMinFieldName())
 		row.FieldIDs = append(row.FieldIDs, fieldID)
 	}
 	// max
 	if compoundFieldItr.Max() > 0 {
-		if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-			namespace, metricName, compoundFieldItr.HistogramMaxFieldName(), field.MaxField, limits); err != nil {
-			return err
-		}
+		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramMaxFieldName())
 		row.FieldIDs = append(row.FieldIDs, fieldID)
 	}
 	// sum
-	if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-		namespace, metricName, compoundFieldItr.HistogramSumFieldName(), field.SumField, limits); err != nil {
-		return err
-	}
+	fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramSumFieldName())
 	row.FieldIDs = append(row.FieldIDs, fieldID)
 	// count
-	if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-		namespace, metricName, compoundFieldItr.HistogramCountFieldName(), field.SumField, limits); err != nil {
-		return err
-	}
+	fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramCountFieldName())
 	row.FieldIDs = append(row.FieldIDs, fieldID)
 	// explicit bounds
 	for compoundFieldItr.HasNextBucket() {
-		if fieldID, err = s.metadata.MetadataDatabase().GenFieldID(
-			namespace, metricName,
-			compoundFieldItr.BucketName(), field.HistogramField, limits); err != nil {
-			return err
-		}
+		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.BucketName())
 		row.FieldIDs = append(row.FieldIDs, fieldID)
 	}
 

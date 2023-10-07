@@ -486,13 +486,16 @@ func BenchmarkWrite(b *testing.B) {
 		Namespace: "ns",
 		SimpleFields: []*protoMetricsV1.SimpleField{
 			{Name: "f1", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
+			{Name: "f2", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
+			{Name: "f3", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
+			{Name: "f4", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
+			{Name: "f5", Type: protoMetricsV1.SimpleFieldType_DELTA_SUM, Value: 10},
 		},
 	})
-	fmt.Println(b.N)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		row.SeriesID = uint32(i)
-		row.FieldIDs = []field.ID{10}
+		row.FieldIDs = []field.ID{10, 1, 2, 3, 4}
 		mdINTF.WriteRow(row)
 	}
 }

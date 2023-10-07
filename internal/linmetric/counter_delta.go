@@ -18,6 +18,8 @@
 package linmetric
 
 import (
+	"fmt"
+
 	"go.uber.org/atomic"
 
 	"github.com/lindb/common/proto/gen/v1/flatMetricsV1"
@@ -67,6 +69,11 @@ func (c *BoundCounter) Get() float64 {
 func (c *BoundCounter) gather() float64 {
 	v := c.delta.Load()
 	c.delta.Sub(v)
+
+	if c.fieldName == "write_fields" {
+		fmt.Printf("write_fields=%f\n", v)
+	}
+
 	return v
 }
 
