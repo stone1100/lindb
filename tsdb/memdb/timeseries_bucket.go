@@ -6,6 +6,7 @@ import (
 
 type TimeSeriesBucket interface {
 	GetOrCreateFStore(seriesID uint32, createFn func() (fStoreINTF, error)) (fStoreINTF, error)
+	Size() int
 }
 
 type timeSeriesBucket struct {
@@ -15,9 +16,17 @@ type timeSeriesBucket struct {
 }
 
 func NewTimeSeriesBucket() TimeSeriesBucket {
-	return &timeSeriesBucket{
+	tsb := &timeSeriesBucket{
 		stores: NewTimeSeriesStore(),
 	}
+	return tsb
+}
+
+func (tsb *timeSeriesBucket) Size() int {
+	tsb.lock.Lock()
+	defer tsb.lock.Unlock()
+
+	return tsb.stores.Size()
 }
 
 func (tsb *timeSeriesBucket) GetOrCreateFStore(seriesID uint32, createFn func() (fStoreINTF, error)) (fStoreINTF, error) {
@@ -28,12 +37,11 @@ func (tsb *timeSeriesBucket) GetOrCreateFStore(seriesID uint32, createFn func() 
 	if ok {
 		return fStore, nil
 	}
-
 	// create field store
-	fStore, err := createFn()
+	fs, err := createFn()
 	if err != nil {
 		return nil, err
 	}
-	tsb.stores.Put(seriesID, fStore)
-	return fStore, nil
+	tsb.stores.Put(seriesID, fs)
+	return fs, nil
 }

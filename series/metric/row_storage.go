@@ -19,29 +19,19 @@ package metric
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-
-	"github.com/lindb/lindb/series/field"
 )
 
 // StorageRow represents a metric row with meta information and fields.
 type StorageRow struct {
-	MetricID  ID
-	SeriesID  uint32
 	SlotIndex uint16
-	FieldIDs  []field.ID
 
-	Writable bool // Writable symbols if all meta information is set
 	readOnlyRow
 }
 
 // Unmarshal unmarshalls bytes slice into a metric-row without metric context
 func (mr *StorageRow) Unmarshal(data []byte) {
 	mr.m.Init(data, flatbuffers.GetUOffsetT(data))
-	mr.MetricID = 0
-	mr.SeriesID = 0
 	mr.SlotIndex = 0
-	mr.FieldIDs = mr.FieldIDs[:0]
-	mr.Writable = false
 }
 
 // StorageBatchRows holds multi rows for inserting into memdb

@@ -39,7 +39,7 @@ var (
 )
 
 // metadataDatabase implements the MetadataDatabase interface,
-// !!!!NOTICE: need cache all tag keys/fields of metric.
+// NOTE: need cache all tag keys/fields of metric.
 type metadataDatabase struct {
 	databaseName string
 	path         string

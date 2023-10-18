@@ -542,10 +542,6 @@ func (f *dataFamily) WriteRows(rows []metric.StorageRow) error {
 
 	for idx := range rows {
 		row := rows[idx]
-		if !row.Writable {
-			f.statistics.WriteMetricFailures.Incr()
-			continue
-		}
 		row.SlotIndex = uint16(f.intervalCalc.CalcSlot(
 			row.Timestamp(),
 			f.familyTime,
@@ -554,7 +550,7 @@ func (f *dataFamily) WriteRows(rows []metric.StorageRow) error {
 		err := db.WriteRow(&row)
 		if err == nil {
 			f.statistics.WriteMetrics.Incr()
-			f.statistics.WriteFields.Add(float64(len(row.FieldIDs)))
+			f.statistics.WriteFields.Incr() // FIXME: field count
 		} else {
 			f.statistics.WriteMetricFailures.Incr()
 			f.logger.Error("failed writing row", logger.String("family", f.indicator), logger.Error(err))

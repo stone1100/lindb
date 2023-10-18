@@ -28,7 +28,6 @@ import (
 
 	"go.uber.org/atomic"
 
-	commonconstants "github.com/lindb/common/constants"
 	"github.com/lindb/common/pkg/logger"
 
 	"github.com/lindb/lindb/kv"
@@ -36,8 +35,6 @@ import (
 	"github.com/lindb/lindb/models"
 	"github.com/lindb/lindb/pkg/option"
 	"github.com/lindb/lindb/pkg/timeutil"
-	"github.com/lindb/lindb/series"
-	"github.com/lindb/lindb/series/field"
 	"github.com/lindb/lindb/series/metric"
 	"github.com/lindb/lindb/tsdb/indexdb"
 	"github.com/lindb/lindb/tsdb/memdb"
@@ -111,12 +108,8 @@ type shard struct {
 
 	statistics *metrics.ShardStatistics
 
-	ids    map[uint64]int32
-	lock   sync.RWMutex
-	seq    atomic.Int32
-	metric map[string]*Schema
-
-	mdb *memoryDatabase
+	ts    *TimeSeries
+	memDB *MetricMetadata
 }
 
 // newShard creates shard instance, if shard path exist then load shard data for init.
@@ -143,9 +136,9 @@ func newShard(
 		flushCondition: sync.NewCond(&sync.Mutex{}),
 		statistics:     metrics.NewShardStatistics(db.Name(), strconv.Itoa(int(shardID))),
 		logger:         logger.GetLogger("TSDB", "Shard"),
-		mdb:            db.memdb(),
-		ids:            make(map[uint64]int32),
-		metric:         make(map[string]*Schema),
+
+		ts:    &TimeSeries{},
+		memDB: db.memdb(),
 	}
 	// try cleanup history dirty write buffer
 	createdShard.bufferMgr.Cleanup()
@@ -249,94 +242,8 @@ func (s *shard) GetDataFamilies(intervalType timeutil.IntervalType, timeRange ti
 	return nil
 }
 
-func (s *shard) lookupRowMeta(row *metric.StorageRow) (err error) {
-	limits := s.limits
-
-	if s.limitsChanged.Load() {
-		// get new limits from database
-		// NOTE: modify limits in write goroutine
-		s.limits = s.db.GetLimits()
-		limits = s.limits
-		s.limitsChanged.Store(false)
-	}
-
-	namespace := commonconstants.DefaultNamespace
-	metricName := string(row.Name())
-
-	if len(row.NameSpace()) > 0 {
-		// TODO: add auto create ns check
-		namespace = string(row.NameSpace())
-	}
-
-	var isCreated bool
-	if row.TagsLen() == 0 {
-		// if metric without tags, uses default series id(0)
-		row.SeriesID = series.IDWithoutTags
-	} else {
-		row.SeriesID = uint32(s.GetSeriesID(row.TagsHash()))
-	}
-	if isCreated {
-		// if series id is new, need build inverted index
-		s.indexDB.BuildInvertIndex(
-			namespace,
-			metricName,
-			row.NewKeyValueIterator(),
-			row.SeriesID,
-			limits,
-		)
-	}
-	// set field id
-	simpleFieldItr := row.NewSimpleFieldIterator()
-	var fieldID field.ID
-	for simpleFieldItr.HasNext() {
-		fieldID = s.mdb.GetFieldID(metricName,
-			simpleFieldItr.NextName(),
-		)
-		row.FieldIDs = append(row.FieldIDs, fieldID)
-	}
-
-	compoundFieldItr, ok := row.NewCompoundFieldIterator()
-	if !ok {
-		goto Done
-	}
-	// min
-	if compoundFieldItr.Min() > 0 {
-		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramMinFieldName())
-		row.FieldIDs = append(row.FieldIDs, fieldID)
-	}
-	// max
-	if compoundFieldItr.Max() > 0 {
-		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramMaxFieldName())
-		row.FieldIDs = append(row.FieldIDs, fieldID)
-	}
-	// sum
-	fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramSumFieldName())
-	row.FieldIDs = append(row.FieldIDs, fieldID)
-	// count
-	fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.HistogramCountFieldName())
-	row.FieldIDs = append(row.FieldIDs, fieldID)
-	// explicit bounds
-	for compoundFieldItr.HasNextBucket() {
-		fieldID = s.mdb.GetFieldID(metricName, compoundFieldItr.BucketName())
-		row.FieldIDs = append(row.FieldIDs, fieldID)
-	}
-
-Done:
-	row.Writable = true
-	return nil
-}
-
 // LookupRowMetricMeta lookups the metadata of metric data for each row with same family in batch.
 func (s *shard) LookupRowMetricMeta(rows []metric.StorageRow) error {
-	for idx := range rows {
-		if err := s.lookupRowMeta(&rows[idx]); err != nil {
-			s.statistics.LookupMetricMetaFailures.Incr()
-			s.logger.Error("failed to lookup meta of row",
-				logger.String("database", s.db.Name()),
-				logger.Any("shardID", s.id), logger.Error(err))
-			continue
-		}
-	}
 	return nil
 }
 

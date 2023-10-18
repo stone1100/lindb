@@ -78,7 +78,7 @@ type Database interface {
 	// GetLimits returns database's limits.
 	GetLimits() *models.Limits
 
-	memdb() *memoryDatabase
+	memdb() *MetricMetadata
 }
 
 // database implements Database for storing families,
@@ -100,7 +100,7 @@ type database struct {
 
 	flushChecker DataFlushChecker
 
-	db *memoryDatabase
+	db *MetricMetadata
 }
 
 // newDatabase creates the database instance
@@ -410,6 +410,6 @@ func (db *database) Drop() error {
 	return nil
 }
 
-func (db *database) memdb() *memoryDatabase {
+func (db *database) memdb() *MetricMetadata {
 	return db.db
 }

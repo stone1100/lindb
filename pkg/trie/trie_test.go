@@ -180,7 +180,15 @@ func Test_Trie_words(t *testing.T) {
 	var keys [][]byte
 	var values [][]byte
 	keysString := []string{
-		"a", "ab", "b", "abc", "abcdefgh", "abcdefghijklmnopqrstuvwxyz", "abcdefghijkl", "zzzzzz", "ice",
+		"a",
+		"ab",
+		"abc",
+		"abcdefgh",
+		"abcdefghijklmnopqrstuvwxyz",
+		"abcdefghijkl",
+		"b",
+		"ice",
+		"zzzzzz",
 	}
 	for idx, key := range keysString {
 		keys = append(keys, []byte(key))
@@ -195,20 +203,20 @@ func Test_Trie_words(t *testing.T) {
 	}{
 		{"a", true},
 		{"ab", true},
-		{"b", true},
-		{"bb", false},
 		{"abc", true},
 		{"abcd", false},
 		{"abcdefghijklmnopqrstuvwxyz", true},
 		{"abcdefghijkl", true},
 		{"abcdefghijklm", false},
+		{"b", true},
+		{"bb", false},
+		{"i", false},
+		{"ic", false},
+		{"ice", true},
+		{"ices", false},
 		{"zzzzzz", true},
 		{"zzzzz", false},
 		{"zzzzzzz", false},
-		{"i", false},
-		{"ice", true},
-		{"ic", false},
-		{"ices", false},
 	}
 
 	for _, example := range examples {
@@ -277,8 +285,8 @@ func assertTestData(t *testing.T, path string) {
 	data, err := io.ReadAll(r)
 	assert.Nil(t, err)
 	lines := strings.Split(string(data), "\n")
-
 	for i, line := range lines {
+		fmt.Println(line)
 		keys = append(keys, []byte(line))
 		binary.LittleEndian.PutUint32(scratch[:], uint32(i))
 		values = append(values, append([]byte{}, scratch[:]...))
@@ -322,4 +330,39 @@ func Test_Trie_TestData_UUID(t *testing.T) {
 
 func Test_Trie_TestData_Hsk_words(t *testing.T) {
 	assertTestData(t, "testdata/hsk_words.txt.gz")
+}
+
+func TestTrie_Build(t *testing.T) {
+	keys := [][]byte{
+		[]byte("f"),
+		[]byte("far"),
+		[]byte("fas"),
+		[]byte("fast"),
+		[]byte("fat"),
+		[]byte("s"),
+		[]byte("top"),
+		[]byte("toy"),
+		[]byte("trie"),
+		[]byte("trip"),
+		[]byte("try"),
+	}
+	values := [][]byte{
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+	}
+	kvPair{keys: keys, values: values}.Sort()
+	builder := trie.NewBuilder()
+	trie := builder.Build(keys, values, 1)
+	data, err := trie.MarshalBinary()
+	assert.NoError(t, err)
+	fmt.Println(len(data))
 }

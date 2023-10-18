@@ -18,6 +18,7 @@
 package memdb
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"sync"
@@ -108,6 +109,9 @@ type memoryDatabase struct {
 	createdTime int64
 
 	statistics *metrics.MemDBStatistics
+
+	metricMetadata *MetricMetadata
+	timeSeries     *TimeSeries
 }
 
 // NewMemoryDatabase returns a new MemoryDatabase.
@@ -128,6 +132,7 @@ func NewMemoryDatabase(cfg MemoryDatabaseCfg) (MemoryDatabase, error) {
 	for idx := range db.tStores {
 		db.tStores[idx] = NewTimeSeriesBucket()
 	}
+	go db.t()
 	return db, nil
 }
 
@@ -192,7 +197,9 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	var size int
 	defer md.allocSize.Add(int64(size))
 
-	seriesID := row.SeriesID
+	schema := md.metricMetadata.GetSchema(string(row.Name()))
+
+	seriesID := md.timeSeries.GetTimeSeriesID(row.TagsHash(), nil)
 	var fieldIDIdx = 0
 	afterWrite := func(writtenLinFieldSize int) {
 		fieldIDIdx++
@@ -202,8 +209,9 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	simpleFieldItr := row.NewSimpleFieldIterator()
 	for simpleFieldItr.HasNext() {
 		writtenLinFieldSize, err := md.writeLinField(
+			schema, row,
 			row.SlotIndex,
-			row.FieldIDs[fieldIDIdx],
+			simpleFieldItr.NextName(),
 			simpleFieldItr.NextType(),
 			simpleFieldItr.NextValue(),
 			seriesID,
@@ -226,7 +234,8 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	// write histogram_min
 	if compoundFieldItr.Min() > 0 {
 		writtenLinFieldSize, err = md.writeLinField(
-			row.SlotIndex, row.FieldIDs[fieldIDIdx],
+			schema, row,
+			row.SlotIndex, compoundFieldItr.HistogramMinFieldName(),
 			field.MinField, compoundFieldItr.Min(),
 			seriesID)
 		if err != nil {
@@ -237,7 +246,8 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	// write histogram_max
 	if compoundFieldItr.Max() > 0 {
 		writtenLinFieldSize, err = md.writeLinField(
-			row.SlotIndex, row.FieldIDs[fieldIDIdx],
+			schema, row,
+			row.SlotIndex, compoundFieldItr.HistogramMaxFieldName(),
 			field.MaxField, compoundFieldItr.Max(),
 			seriesID)
 		if err != nil {
@@ -247,7 +257,8 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	}
 	// write histogram_sum
 	writtenLinFieldSize, err = md.writeLinField(
-		row.SlotIndex, row.FieldIDs[fieldIDIdx],
+		schema, row,
+		row.SlotIndex, compoundFieldItr.HistogramSumFieldName(),
 		field.SumField, compoundFieldItr.Sum(),
 		seriesID)
 	if err != nil {
@@ -257,7 +268,8 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 
 	// write histogram_count
 	writtenLinFieldSize, err = md.writeLinField(
-		row.SlotIndex, row.FieldIDs[fieldIDIdx],
+		schema, row,
+		row.SlotIndex, compoundFieldItr.HistogramCountFieldName(),
 		field.SumField, compoundFieldItr.Count(),
 		seriesID)
 	if err != nil {
@@ -270,7 +282,8 @@ func (md *memoryDatabase) WriteRow(row *metric.StorageRow) error {
 	// data must be valid before write
 	for compoundFieldItr.HasNextBucket() {
 		writtenLinFieldSize, err = md.writeLinField(
-			row.SlotIndex, row.FieldIDs[fieldIDIdx],
+			schema, row,
+			row.SlotIndex, compoundFieldItr.BucketName(),
 			field.HistogramField, compoundFieldItr.NextValue(),
 			seriesID)
 		if err != nil {
@@ -284,10 +297,12 @@ End:
 }
 
 func (md *memoryDatabase) writeLinField(
+	schema *Schema, row *metric.StorageRow,
 	slotIndex uint16,
-	fieldID field.ID, fieldType field.Type, fieldValue float64,
+	fieldName field.Name, fieldType field.Type, fieldValue float64,
 	seriesID uint32,
 ) (writtenSize int, err error) {
+	fieldID := schema.GetFieldID(fieldName, fieldType)
 	tStore := md.tStores[fieldID]
 	fStore, err := tStore.GetOrCreateFStore(seriesID, func() (fStoreINTF, error) {
 		buf, err0 := md.buf.AllocPage()
@@ -298,6 +313,10 @@ func (md *memoryDatabase) writeLinField(
 		md.statistics.AllocatedPages.Incr()
 		fStore := newFieldStore(buf, fieldID)
 		md.numOfSeries.Inc()
+
+		// build time series index for new field store
+		md.timeSeries.BuildIndex(schema, row)
+
 		return fStore, nil
 	})
 	if err != nil {
@@ -306,6 +325,30 @@ func (md *memoryDatabase) writeLinField(
 	beforeFStoreCapacity := fStore.Capacity()
 	fStore.Write(fieldType, slotIndex, fieldValue)
 	return writtenSize + fStore.Capacity() - beforeFStoreCapacity, nil
+}
+
+func (md *memoryDatabase) t() {
+	timer := time.NewTimer(20 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			total := 0
+			f := 0
+			for _, tsd := range md.tStores {
+				s := tsd.Size()
+				if s > 0 {
+					f++
+					total += s
+				}
+			}
+			fmt.Printf("total=%d,f=%d\n", total, f)
+
+			// reset check interval
+			timer.Reset(20 * time.Second)
+		}
+	}
 }
 
 // FlushFamilyTo flushes all data related to the family from metric-stores to builder.
