@@ -226,7 +226,7 @@ type BitVectorRank struct {
 	BitVector
 
 	blockSize int
-	rankLut   []uint32
+	rankLut   []int
 }
 
 func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][]uint64, numNodesPerLevel []int, startLevel, endLevel int) {
@@ -238,19 +238,19 @@ func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][]uint64, numNodesP
 func (bvr *BitVectorRank) initLut() {
 	wordPerBlk := bvr.blockSize / bitsSize
 	nblks := bvr.numBits/bvr.blockSize + 1
-	bvr.rankLut = make([]uint32, nblks)
+	bvr.rankLut = make([]int, nblks)
 
-	var totalRank uint32
+	var totalRank int
 	for i := 0; i < nblks-1; i++ {
 		bvr.rankLut[i] = totalRank
-		totalRank += popcountBlock(bvr.bits, uint32(i*wordPerBlk), uint32(bvr.blockSize))
+		totalRank += popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize)
 	}
 	bvr.rankLut[nblks-1] = totalRank
 }
 
 // one count [0 pos]
-func (bvr *BitVectorRank) Rank(pos uint32) uint32 {
-	wordPreBlk := uint32(rankSparseBlockSize / bitsSize)
+func (bvr *BitVectorRank) Rank(pos int) int {
+	wordPreBlk := rankSparseBlockSize / bitsSize
 	blockOff := pos / rankSparseBlockSize
 	bitsOff := pos % rankSparseBlockSize
 

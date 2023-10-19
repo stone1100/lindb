@@ -27,6 +27,19 @@ func u64SliceToBytes(u []uint64) []byte {
 	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
 	return b
 }
+
+func bytesToU64Slice(b []byte) []uint64 {
+	if len(b) == 0 {
+		return nil
+	}
+	var u32s []uint64
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
+	hdr.Len = len(b) / 8
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
+	return u32s
+}
+
 func findFirstSet(x int) int {
 	return bits.TrailingZeros64(uint64(x)) + 1
 }
@@ -71,18 +84,18 @@ func select64Broadword(x uint64, nth int64) int64 {
 	return int64(place + int(selectInByteLut[(x>>place)&0xff][byteRank]))
 }
 
-func popcountBlock(bs []uint64, off, nbits uint32) uint32 {
+func popcountBlock(bs []uint64, off, nbits int) int {
 	if nbits == 0 {
 		return 0
 	}
 
 	lastWord := (nbits - 1) / bitsSize
 	lastBits := (nbits - 1) % bitsSize
-	var i, p uint32
+	var i, p int
 
 	for i = 0; i < lastWord; i++ {
-		p += uint32(bits.OnesCount64(bs[off+i]))
+		p += bits.OnesCount64(bs[off+i])
 	}
 	last := bs[off+lastWord] << (bitsSize - 1 - lastBits)
-	return p + uint32(bits.OnesCount64(last))
+	return p + bits.OnesCount64(last)
 }

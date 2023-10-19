@@ -61,6 +61,8 @@ type Builder struct {
 	suffixCounts []int
 
 	sparseStartLevel int
+
+	values [][]uint32
 }
 
 func NewBuilder() *Builder {
@@ -115,8 +117,8 @@ func (b *Builder) Write(w io.Writer) error {
 	return nil
 }
 
-func (b *Builder) Build(keys [][]byte) {
-	b.buildSparse(keys)
+func (b *Builder) Build(keys [][]byte, values []uint32) {
+	b.buildSparse(keys, values)
 
 	// b.determineCutoffLevel()
 	// fmt.Println(b.sparseStartLevel)
@@ -208,7 +210,7 @@ func (b *Builder) computeSparseMem(startLevel int) int {
 	return mem
 }
 
-func (b *Builder) buildSparse(keys [][]byte) {
+func (b *Builder) buildSparse(keys [][]byte, values []uint32) {
 	for i := 0; i < len(keys); i++ {
 		// skip common prefix
 		level := b.skipCommonPrefix(keys[i])
@@ -221,7 +223,11 @@ func (b *Builder) buildSparse(keys [][]byte) {
 		// insert suffix if has suffix
 		if level < len(keys[i]) {
 			b.insertSuffix(keys[i], level)
+			// } else {
+			// 	b.insertValue(values[i], level-1)
 		}
+		fmt.Println(string(keys[i]))
+		b.insertValue(values[i], level)
 	}
 }
 
@@ -305,9 +311,14 @@ func (b *Builder) isLevelEmpty(level int) bool {
 func (b *Builder) insertSuffix(key []byte, level int) {
 	b.ensureLevel(level)
 
-	setBit(b.hasSuffix[level], b.numNodes(level)-1)
+	// set parent node has suffix
+	setBit(b.hasSuffix[level-1], b.numNodes(level-1)-1)
 	b.suffixes[level] = append(b.suffixes[level], key[level:])
 	b.suffixCounts[level]++
+}
+
+func (b *Builder) insertValue(value uint32, level int) {
+	b.values[level] = append(b.values[level], value)
 }
 
 func (b *Builder) isSameKey(a, c []byte) bool {
@@ -359,6 +370,7 @@ func (b *Builder) addLevel() {
 	b.lsLouds = append(b.lsLouds, []uint64{})
 	// b.hasPrefix = append(b.hasPrefix, b.pickUint64Slice())
 	b.hasSuffix = append(b.hasSuffix, []uint64{})
+	b.values = append(b.values, []uint32{})
 
 	// b.values = append(b.values, []byte{})
 	// b.valueCounts = append(b.valueCounts, 0)
@@ -372,9 +384,8 @@ func (b *Builder) addLevel() {
 	level := b.treeHeight() - 1
 	b.lsHasChild[level] = append(b.lsHasChild[level], 0)
 	b.lsLouds[level] = append(b.lsLouds[level], 0)
-
 	// b.hasPrefix[level] = append(b.hasPrefix[level], 0)
-	// b.hasSuffix[level] = append(b.hasSuffix[level], 0)
+	b.hasSuffix[level] = append(b.hasSuffix[level], 0)
 }
 
 func (b *Builder) getSparseStartLevel() int {

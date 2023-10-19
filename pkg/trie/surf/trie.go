@@ -24,9 +24,9 @@ func NewTrie() *Trie {
 	return &Trie{}
 }
 
-func (trie *Trie) Create(keys [][]byte) {
+func (trie *Trie) Create(keys [][]byte, values []uint32) {
 	builder := NewBuilder()
-	builder.Build(keys)
+	builder.Build(keys, values)
 
 	// init Louds-Dense
 	if builder.getSparseStartLevel() > 0 {

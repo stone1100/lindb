@@ -406,3 +406,33 @@ func BenchmarkTrie_Iterator(b *testing.B) {
 		}
 	}
 }
+
+func TestTrie_Build2(t *testing.T) {
+	keys := [][]byte{
+		[]byte("hello"),
+		[]byte("her"),
+		[]byte("hi"),
+		[]byte("how"),
+		[]byte("seor"),
+		[]byte("so"),
+	}
+	values := [][]byte{
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+	}
+	fmt.Println("kkkkkkk")
+	kvPair{keys: keys, values: values}.Sort()
+	builder := trie.NewBuilder()
+	trie := builder.Build(keys, values, 1)
+	it := trie.NewIterator()
+	it.SeekToFirst()
+	for it.Valid() {
+		fmt.Println(string(it.Key()))
+		fmt.Println(string(it.Value()))
+		it.Next()
+	}
+}

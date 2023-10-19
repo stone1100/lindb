@@ -40,6 +40,10 @@ func (it *Iterator) Key() []byte {
 	return key
 }
 
+func (it *Iterator) Value() uint32 {
+	return it.loudsSparseIt.getValue()
+}
+
 func (it *Iterator) passToSparse() {
 	//TODO:
 }
@@ -63,6 +67,7 @@ type loudsSparseIterator struct {
 	// start couting from start level; does NOT include suffix
 	level          int // level
 	key            []byte
+	fullKey        []byte
 	isAtTerminator bool
 	posInTrie      []int
 }
@@ -170,10 +175,8 @@ func (it *loudsSparseIterator) next() {
 
 func (it *loudsSparseIterator) nextPos() (int, bool) {
 	it.isAtTerminator = false
-	level := it.level - 1
+	level := it.level - 1 // because append label add level, so need -1
 	pos := it.posInTrie[level] + 1
-	// nodeNum := it.trie.getChildNodeNum(pos)
-	// pos = it.trie.getFirstLabelPos(nodeNum)
 
 	for pos >= it.trie.louds.numBits || it.trie.louds.ReadBit(pos) {
 		// if not child, try find next node of parent
@@ -264,7 +267,26 @@ func (it *loudsSparseIterator) getKey() []byte {
 	if it.isAtTerminator {
 		kLen--
 	}
-	return it.key[:kLen]
+	uniqueKey := it.key[:kLen]
+
+	pos := it.posInTrie[it.level-1]
+	suffix := it.trie.suffixes.GetSuffix(pos)
+	// fmt.Println(it.trie.suffixPos(pos))
+	if len(suffix) == 0 {
+		return uniqueKey
+	}
+	expectLen := kLen + len(suffix)
+	if cap(it.fullKey) < expectLen {
+		it.fullKey = make([]byte, expectLen)
+	}
+	it.fullKey = it.fullKey[0:expectLen]
+	copy(it.fullKey[:kLen], uniqueKey)
+	copy(it.fullKey[kLen:], suffix)
+	return it.fullKey
+}
+func (it *loudsSparseIterator) getValue() uint32 {
+	valPos := it.trie.valuePos(it.posInTrie[it.level-1])
+	return it.trie.values.Get(valPos)
 }
 
 // append appends label to key buffer, and goto next level.

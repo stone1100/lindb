@@ -13,6 +13,7 @@ type loudsSparse struct {
 	hasChild *BitVectorRank
 	louds    *BitVectorSelect
 	suffixes *SuffixVector
+	values   *ValueVector
 
 	height          int
 	startLevel      int
@@ -52,9 +53,13 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	ls.louds = &BitVectorSelect{}
 	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel, ls.startLevel, ls.height)
 
-	// init suffix TODO:...
-	// ls.suffixes = &SuffixVector{}
-	// ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
+	// init suffix
+	ls.suffixes = &SuffixVector{}
+	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
+
+	// init values
+	ls.values = &ValueVector{}
+	ls.values.Init(builder.values, ls.startLevel, ls.height)
 }
 
 func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok bool) {
@@ -89,7 +94,12 @@ func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok boo
 }
 
 func (ls *loudsSparse) getChildNodeNum(pos int) int {
-	return int(ls.hasChild.Rank(uint32(pos))) + ls.childCountDense
+	return ls.hasChild.Rank(pos) + ls.childCountDense
+}
+
+// S-ValuePos(pos) = pos - rank1(S-HasChild,pos)
+func (ls *loudsSparse) valuePos(pos int) int {
+	return pos - ls.hasChild.Rank(pos)
 }
 
 // S-ChildNodePos(pos) = select1(S-LOUDS, rank1(S-HasChild, pos) + 1)

@@ -122,6 +122,48 @@ func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []i
 	}
 }
 
+func (cpv *compressPathVector) GetPath(pos int) []byte {
+	if !cpv.hasPathVector.ReadBit(pos) {
+		return nil
+	}
+	endPos := cpv.hasPathVector.Rank(pos) - 1
+	start := cpv.offsets[endPos]
+	end := len(cpv.data)
+	if int(endPos+1) < len(cpv.offsets) {
+		end = cpv.offsets[endPos+1]
+	}
+	return cpv.data[start:end]
+}
+
 type SuffixVector struct {
 	compressPathVector
+}
+
+func (v *SuffixVector) GetSuffix(pos int) []byte {
+	return v.GetPath(pos)
+}
+
+type ValueVector struct {
+	values []uint32
+}
+
+func (v *ValueVector) Init(valuesPerLevel [][]uint32, startLevel, height int) {
+	size := 0
+	for level := startLevel; level < height; level++ {
+		size += len(valuesPerLevel[level])
+	}
+	v.values = make([]uint32, size)
+
+	pos := 0
+	for level := startLevel; level < height; level++ {
+		values := valuesPerLevel[level]
+		for _, val := range values {
+			v.values[pos] = val
+			pos++
+		}
+	}
+}
+
+func (v *ValueVector) Get(pos int) uint32 {
+	return v.values[pos]
 }
