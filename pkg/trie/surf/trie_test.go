@@ -22,8 +22,8 @@ func TestTrie_Build(t *testing.T) {
 	}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
 
 	fmt.Println(trie.String())
-	// num, ok := trie.Get([]byte("trip"))
-	// fmt.Printf("num=%d,ok=%t\n", num, ok)
+	num, ok := trie.Get([]byte("trip"))
+	fmt.Printf("get=>num=%d,ok=%t\n", num, ok)
 
 	it := trie.Iterator()
 	it.First()

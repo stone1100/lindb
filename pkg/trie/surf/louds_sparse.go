@@ -62,8 +62,8 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	ls.values.Init(builder.values, ls.startLevel, ls.height)
 }
 
-func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok bool) {
-	nodeNum = inNodeNum
+func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (value uint32, ok bool) {
+	nodeNum := inNodeNum
 	pos := ls.getFirstLabelPos(nodeNum)
 	fmt.Printf("start pos=%d\n", pos)
 
@@ -72,12 +72,12 @@ func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok boo
 		fmt.Printf("----,pos=%d,nodeSize=%d\n", pos, ls.nodeSize(pos))
 		// check labels if exist
 		if pos, ok = ls.labels.Search(key[level], pos, ls.nodeSize(pos)); !ok {
-			return -1, false
+			return 0, false
 		}
 		// if trie branch terminates
 		if !ls.hasChild.ReadBit(pos) {
 			//FIXME: need check suffix
-			return nodeNum, true
+			return ls.values.Get(ls.valuePos(pos)), true
 		}
 
 		fmt.Printf("before=>node=%d,pos=%d\n", nodeNum, pos)
@@ -88,9 +88,9 @@ func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok boo
 	}
 	if ls.labels.Read(pos) == terminator && !ls.hasChild.ReadBit(pos) {
 		//FIXME: need check suffix
-		return nodeNum, true
+		return ls.values.Get(ls.valuePos(pos)), true
 	}
-	return -1, false
+	return 0, false
 }
 
 func (ls *loudsSparse) getChildNodeNum(pos int) int {

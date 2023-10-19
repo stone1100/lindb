@@ -39,13 +39,14 @@ func (trie *Trie) Create(keys [][]byte, values []uint32) {
 	trie.loudsSparse.Init(builder)
 }
 
-func (trie *Trie) Get(key []byte) (nodeNum int, exist bool) {
+func (trie *Trie) Get(key []byte) (value uint32, exist bool) {
+	nodeNum := 0
 	if trie.loudsDense == nil {
 		return trie.loudsSparse.lookupKey(key, nodeNum)
 	}
 
 	if nodeNum, exist = trie.loudsDense.lookupKey(key); !exist {
-		return -1, false
+		return 0, false
 	} else if nodeNum != 0 {
 		return trie.loudsSparse.lookupKey(key, nodeNum)
 	}

@@ -13,7 +13,7 @@ const (
 	// leading to a node is also a valid key
 	terminator       = 0xff
 	fanout           = 256
-	sparseDenseRatio = 16
+	sparseDenseRatio = 64
 )
 
 var (
@@ -184,7 +184,7 @@ func (b *Builder) determineCutoffLevel() {
 		denseMem = b.computeDenseMem(cutoffLevel)
 		sparseMem = b.computeSparseMem(cutoffLevel)
 	}
-	// cutoffLevel--
+	cutoffLevel--
 	b.sparseStartLevel = cutoffLevel
 }
 
