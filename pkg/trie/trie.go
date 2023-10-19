@@ -19,7 +19,6 @@ package trie
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 )
 
@@ -55,8 +54,6 @@ func (tree *trie) Init(builder *builder) *trie {
 
 	tree.prefixVec.Init(builder.hasPrefix, builder.nodeCounts, builder.prefixes)
 	tree.suffixVec.Init(builder.hasSuffix, numItemsPerLevel, builder.suffixes)
-	fmt.Println(string(tree.labelVec.labels))
-	fmt.Println(tree.loudsVec.bitVector.String())
 
 	return tree
 }

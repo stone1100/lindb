@@ -25,7 +25,7 @@ func NewTrie() *Trie {
 }
 
 func (trie *Trie) Create(keys [][]byte) {
-	builder := &Builder{}
+	builder := NewBuilder()
 	builder.Build(keys)
 
 	// init Louds-Dense

@@ -27,7 +27,7 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	for level := 0; level < ls.startLevel; level++ {
 		ls.nodeCountDense += builder.nodeCounts[level]
 	}
-	fmt.Println(ls.nodeCountDense)
+	// fmt.Println(ls.nodeCountDense)
 	if ls.startLevel == 0 {
 		ls.childCountDense = 0
 	} else {
@@ -52,9 +52,9 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	ls.louds = &BitVectorSelect{}
 	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel, ls.startLevel, ls.height)
 
-	// init suffix
-	ls.suffixes = &SuffixVector{}
-	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
+	// init suffix TODO:...
+	// ls.suffixes = &SuffixVector{}
+	// ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
 }
 
 func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok bool) {

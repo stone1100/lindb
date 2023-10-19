@@ -19,10 +19,7 @@ func NewLabelVector() *LabelVector {
 }
 
 func (lv *LabelVector) Init(labels [][]byte, startLevel, trieHeight int) {
-	numBytes := 0 // TODO: 1=> root?
-	for l := startLevel; l < trieHeight; l++ {
-		numBytes += len(labels[l])
-	}
+	numBytes := labelsSize(labels, startLevel, trieHeight)
 	lv.labels = make([]byte, numBytes)
 
 	pos := 0
@@ -30,6 +27,14 @@ func (lv *LabelVector) Init(labels [][]byte, startLevel, trieHeight int) {
 		copy(lv.labels[pos:], labels[l])
 		pos += len(labels[l])
 	}
+}
+
+func labelsSize(labels [][]byte, startLevel, trieHeight int) int {
+	numBytes := 0 // TODO: 1=> root?
+	for l := startLevel; l < trieHeight; l++ {
+		numBytes += len(labels[l])
+	}
+	return numBytes
 }
 
 func (ls *LabelVector) Read(pos int) byte {

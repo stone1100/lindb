@@ -2,7 +2,9 @@ package surf
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 const (
@@ -59,6 +61,58 @@ type Builder struct {
 	suffixCounts []int
 
 	sparseStartLevel int
+}
+
+func NewBuilder() *Builder {
+	return &Builder{}
+}
+
+func (b *Builder) Write(w io.Writer) error {
+	height := b.treeHeight()
+	startLevel := b.getSparseStartLevel()
+	var (
+		bs [4]byte
+	)
+	// write height
+	binary.LittleEndian.PutUint32(bs[:], uint32(height))
+	if _, err := w.Write(bs[:]); err != nil {
+		return err
+	}
+	// write start level
+	binary.LittleEndian.PutUint32(bs[:], uint32(startLevel))
+	if _, err := w.Write(bs[:]); err != nil {
+		return err
+	}
+
+	// write labels
+	numBytes := labelsSize(b.lsLabels, startLevel, height)
+	binary.LittleEndian.PutUint32(bs[:], uint32(numBytes))
+	if _, err := w.Write(bs[:]); err != nil {
+		return err
+	}
+	for l := startLevel; l < height; l++ {
+		if _, err := w.Write(b.lsLabels[l]); err != nil {
+			return err
+		}
+	}
+	numNodesPerLevel := make([]int, height)
+	for level := range numNodesPerLevel {
+		numNodesPerLevel[level] = len(b.lsLabels[level])
+	}
+	// write has child
+	hasChild := &BitVector{}
+	hasChild.Init(b.lsHasChild, numNodesPerLevel, startLevel, height)
+	if err := hasChild.write(w); err != nil {
+		return err
+	}
+	// write louds
+	louds := &BitVector{}
+	louds.Init(b.lsLouds, numNodesPerLevel, startLevel, height)
+	if err := louds.write(w); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Builder) Build(keys [][]byte) {

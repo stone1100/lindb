@@ -1,6 +1,12 @@
 package surf
 
-import "testing"
+import (
+	"bytes"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestBuild(t *testing.T) {
 	b := &Builder{}
@@ -12,4 +18,36 @@ func TestBuild(t *testing.T) {
 		[]byte("seor"),
 		[]byte("so"),
 	})
+}
+
+func TestBuilder_Write(t *testing.T) {
+	b := NewBuilder()
+	b.Build([][]byte{
+		[]byte("f"),
+		[]byte("far"),
+		[]byte("fas"),
+		[]byte("fast"),
+		[]byte("fat"),
+		[]byte("s"),
+		[]byte("top"),
+		[]byte("toy"),
+		[]byte("trie"),
+		[]byte("trip"),
+		[]byte("try"),
+	})
+	w := bytes.NewBuffer([]byte{})
+	err := b.Write(w)
+	assert.NoError(t, err)
+	data := w.Bytes()
+	fmt.Printf("size=%d\n", len(data))
+	trie2 := NewTrie()
+	err = trie2.Unmarshal(data)
+	assert.NoError(t, err)
+	fmt.Println(trie2.String())
+	it := trie2.Iterator()
+	it.First()
+	for it.IsValid() {
+		fmt.Printf("key=%s\n", string(it.Key()))
+		it.Next()
+	}
 }

@@ -170,19 +170,22 @@ func (it *loudsSparseIterator) next() {
 
 func (it *loudsSparseIterator) nextPos() (int, bool) {
 	it.isAtTerminator = false
-	pos := it.posInTrie[it.level-1]
-	nodeNum := it.trie.getChildNodeNum(pos)
-	pos = it.trie.getFirstLabelPos(nodeNum)
+	level := it.level - 1
+	pos := it.posInTrie[level] + 1
+	// nodeNum := it.trie.getChildNodeNum(pos)
+	// pos = it.trie.getFirstLabelPos(nodeNum)
 
 	for pos >= it.trie.louds.numBits || it.trie.louds.ReadBit(pos) {
 		// if not child, try find next node of parent
-		if it.level == 0 {
+		if level == 0 {
+			it.level = 0
 			it.isValid = false
 			return -1, false
 		}
-		it.level--                       // goto parent
-		pos = it.posInTrie[it.level] + 1 // brother node
+		level--
+		pos = it.posInTrie[level] + 1 // brother node
 	}
+	it.level = level
 	return pos, true
 }
 

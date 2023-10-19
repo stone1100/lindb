@@ -27,19 +27,6 @@ func u64SliceToBytes(u []uint64) []byte {
 	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
 	return b
 }
-
-func bytesToU64Slice(b []byte) []uint64 {
-	if len(b) == 0 {
-		return nil
-	}
-	var u32s []uint64
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
-	hdr.Len = len(b) / 8
-	hdr.Cap = hdr.Len
-	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
-	return u32s
-}
-
 func findFirstSet(x int) int {
 	return bits.TrailingZeros64(uint64(x)) + 1
 }

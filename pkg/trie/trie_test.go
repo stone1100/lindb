@@ -366,3 +366,43 @@ func TestTrie_Build(t *testing.T) {
 	assert.NoError(t, err)
 	fmt.Println(len(data))
 }
+
+func BenchmarkTrie_Iterator(b *testing.B) {
+	keys := [][]byte{
+		[]byte("f"),
+		[]byte("far"),
+		[]byte("fas"),
+		[]byte("fast"),
+		[]byte("fat"),
+		[]byte("s"),
+		[]byte("top"),
+		[]byte("toy"),
+		[]byte("trie"),
+		[]byte("trip"),
+		[]byte("try"),
+	}
+	values := [][]byte{
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+		{1},
+	}
+	kvPair{keys: keys, values: values}.Sort()
+	builder := trie.NewBuilder()
+	trie := builder.Build(keys, values, 1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		it := trie.NewIterator()
+		it.SeekToFirst()
+		for it.Valid() {
+			it.Next()
+		}
+	}
+}
