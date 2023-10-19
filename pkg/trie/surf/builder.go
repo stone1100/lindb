@@ -220,14 +220,12 @@ func (b *Builder) buildSparse(keys [][]byte, values []uint32) {
 			// for last key, there is no successor key in the list
 			level = b.insertKeyBytesToTrieUntilUnique(keys[i], emptyKey, level)
 		}
-		// insert suffix if has suffix
-		if level < len(keys[i]) {
-			b.insertSuffix(keys[i], level)
-			// } else {
-			// 	b.insertValue(values[i], level-1)
-		}
-		fmt.Println(string(keys[i]))
+		b.ensureLevel(level)
 		b.insertValue(values[i], level)
+		if level < len(keys[i]) {
+			// insert suffix if has suffix
+			b.insertSuffix(keys[i], level)
+		}
 	}
 }
 
@@ -259,12 +257,12 @@ func (b *Builder) insertKeyBytesToTrieUntilUnique(key []byte, nextKey []byte, st
 	// the last byte inserted makes key unique in the tire
 	if level < len(key) {
 		b.insertKeyByte(key[level], level, isStartOfNode, isTerm)
-		level++ // goto next
 	} else {
 		// insert terminator char
 		isTerm = true
 		b.insertKeyByte(terminator, level, isStartOfNode, isTerm)
 	}
+	level++ // goto next
 
 	return level
 }
@@ -273,7 +271,7 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 	// level should be at most equal to tree height
 	b.ensureLevel(level)
 
-	// store paren has child
+	// store parent has child
 	// sets parent node's child indicator
 	if level > 0 {
 		// all keys is sorted, so new key will append right
@@ -309,8 +307,6 @@ func (b *Builder) isLevelEmpty(level int) bool {
 }
 
 func (b *Builder) insertSuffix(key []byte, level int) {
-	b.ensureLevel(level)
-
 	// set parent node has suffix
 	setBit(b.hasSuffix[level-1], b.numNodes(level-1)-1)
 	b.suffixes[level] = append(b.suffixes[level], key[level:])
