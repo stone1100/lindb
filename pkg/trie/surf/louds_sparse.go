@@ -15,31 +15,15 @@ type loudsSparse struct {
 	suffixes *SuffixVector
 	values   *ValueVector
 
-	height          int
-	startLevel      int
-	nodeCountDense  int
-	childCountDense int
+	height int
 }
 
 func (ls *loudsSparse) Init(builder *Builder) {
 	ls.height = builder.treeHeight()
-	ls.startLevel = builder.getSparseStartLevel()
-	ls.nodeCountDense = 0
-	for level := 0; level < ls.startLevel; level++ {
-		ls.nodeCountDense += builder.nodeCounts[level]
-	}
-	// fmt.Println(ls.nodeCountDense)
-	if ls.startLevel == 0 {
-		ls.childCountDense = 0
-	} else {
-		ls.childCountDense = ls.nodeCountDense + builder.nodeCounts[ls.startLevel] - 1
-	}
-
-	//TODO: dense
 
 	// init louds-sparse labels
 	ls.labels = NewLabelVector()
-	ls.labels.Init(builder.getLabels(), ls.startLevel, ls.height)
+	ls.labels.Init(builder.getLabels())
 
 	numNodesPerLevel := make([]int, ls.height)
 	for level := range numNodesPerLevel {
@@ -47,54 +31,56 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	}
 	// init louds-sparse has-child
 	ls.hasChild = &BitVectorRank{}
-	ls.hasChild.Init(rankSparseBlockSize, builder.getHasChildBits(), numNodesPerLevel, ls.startLevel, ls.height)
+	ls.hasChild.Init(rankSparseBlockSize, builder.getHasChildBits(), numNodesPerLevel)
 
 	// init louds-sparse louds
 	ls.louds = &BitVectorSelect{}
-	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel, ls.startLevel, ls.height)
+	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel)
 
 	// init suffix
 	ls.suffixes = &SuffixVector{}
-	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
+	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes)
 
 	// init values
 	ls.values = &ValueVector{}
-	ls.values.Init(builder.values, ls.startLevel, ls.height)
+	ls.values.Init(builder.values)
 }
 
-func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (value uint32, ok bool) {
-	nodeNum := inNodeNum
+func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
+	nodeNum := 0
 	pos := ls.getFirstLabelPos(nodeNum)
-	fmt.Printf("start pos=%d\n", pos)
 
 	level := 0
-	for level = ls.startLevel; level < len(key); level++ {
-		fmt.Printf("----,pos=%d,nodeSize=%d\n", pos, ls.nodeSize(pos))
+	for ; level < len(key); level++ {
 		// check labels if exist
 		if pos, ok = ls.labels.Search(key[level], pos, ls.nodeSize(pos)); !ok {
-			return 0, false
+			return
 		}
 		// if trie branch terminates
 		if !ls.hasChild.ReadBit(pos) {
-			//FIXME: need check suffix
-			return ls.values.Get(ls.valuePos(pos)), true
+			if ok = ls.suffixes.CheckSuffix(key, level, pos); ok {
+				value = ls.values.Get(ls.valuePos(pos))
+				ok = true
+			}
+			return
 		}
 
-		fmt.Printf("before=>node=%d,pos=%d\n", nodeNum, pos)
 		// move to child
 		nodeNum = ls.getChildNodeNum(pos)
 		pos = ls.getFirstLabelPos(nodeNum)
-		fmt.Printf("after=>node=%d,pos=%d\n", nodeNum, pos)
 	}
 	if ls.labels.Read(pos) == terminator && !ls.hasChild.ReadBit(pos) {
-		//FIXME: need check suffix
-		return ls.values.Get(ls.valuePos(pos)), true
+		if ok = ls.suffixes.CheckSuffix(key, level, pos); ok {
+			value = ls.values.Get(ls.valuePos(pos))
+			ok = true
+		}
+		return
 	}
-	return 0, false
+	return
 }
 
 func (ls *loudsSparse) getChildNodeNum(pos int) int {
-	return ls.hasChild.Rank(pos) + ls.childCountDense
+	return ls.hasChild.Rank(pos)
 }
 
 // S-ValuePos(pos) = pos - rank1(S-HasChild,pos)
@@ -105,7 +91,7 @@ func (ls *loudsSparse) valuePos(pos int) int {
 // S-ChildNodePos(pos) = select1(S-LOUDS, rank1(S-HasChild, pos) + 1)
 // nodeNum = ls.getChildNodeNum(pos) => rank1(S-HasChild, pos)
 func (ls *loudsSparse) getFirstLabelPos(nodeNum int) int {
-	return int(ls.louds.Select(uint32(nodeNum + 1 - ls.nodeCountDense)))
+	return int(ls.louds.Select(uint32(nodeNum + 1)))
 }
 
 func (ls *loudsSparse) nodeSize(pos int) int {
@@ -122,11 +108,6 @@ func (ls *loudsSparse) write(w io.Writer) error {
 	)
 	// write height
 	binary.LittleEndian.PutUint32(bs[:], uint32(ls.height))
-	if _, err := w.Write(bs[:]); err != nil {
-		return err
-	}
-	// write start level
-	binary.LittleEndian.PutUint32(bs[:], uint32(ls.startLevel))
 	if _, err := w.Write(bs[:]); err != nil {
 		return err
 	}
@@ -147,7 +128,6 @@ func (ls *loudsSparse) write(w io.Writer) error {
 
 func (ls *loudsSparse) unmarshal(reader *stream.Reader) (err error) {
 	ls.height = int(reader.ReadUint32())
-	ls.startLevel = int(reader.ReadUint32())
 
 	labels := &LabelVector{}
 	if err := labels.unmarshal(reader); err != nil {

@@ -1,9 +1,6 @@
 package surf
 
-import "fmt"
-
 type Iterator struct {
-	loudsDenseIt  *loudsDenseIterator
 	loudsSparseIt *loudsSparseIterator
 }
 
@@ -11,19 +8,10 @@ func NewIterator(trie *Trie) *Iterator {
 	it := &Iterator{
 		loudsSparseIt: newLoudsSparseIterator(trie.loudsSparse),
 	}
-	loudsDense := trie.loudsDense
-	if loudsDense != nil {
-		it.loudsDenseIt = &loudsDenseIterator{
-			loudsDense: loudsDense,
-		}
-	}
 	return it
 }
 
 func (it *Iterator) First() {
-	//TODO: dense
-
-	// it.loudsSparseIt.setToFirstLabelInRoot()
 	it.loudsSparseIt.moveToLeftMostKey()
 }
 
@@ -44,24 +32,14 @@ func (it *Iterator) Value() uint32 {
 	return it.loudsSparseIt.getValue()
 }
 
-func (it *Iterator) passToSparse() {
-	//TODO:
-}
-
 func (it *Iterator) Seek(prefix []byte) {
-	ok := it.loudsSparseIt.seek(prefix)
-	fmt.Println(ok)
-}
-
-type loudsDenseIterator struct {
-	loudsDense *loudsDense
+	_ = it.loudsSparseIt.seek(prefix)
 }
 
 type loudsSparseIterator struct {
 	trie *loudsSparse
 	// true means the iter currently points to a valid key
-	isValid    bool
-	startLevel int
+	isValid bool
 	// passed in by the dense iterator, default 0
 	startNodeNum int
 	// start couting from start level; does NOT include suffix
@@ -79,11 +57,9 @@ func newLoudsSparseIterator(trie *loudsSparse) *loudsSparseIterator {
 		startNodeNum:   0,
 		level:          0,
 		isAtTerminator: false,
-		startLevel:     trie.startLevel,
 	}
-	size := trie.height - trie.startLevel
-	it.key = make([]byte, size)
-	it.posInTrie = make([]int, size)
+	it.key = make([]byte, trie.height)
+	it.posInTrie = make([]int, trie.height)
 	return it
 }
 
@@ -97,12 +73,6 @@ func (it *loudsSparseIterator) reset() {
 		it.key[level] = 0
 		it.posInTrie[level] = 0
 	}
-}
-
-func (it *loudsSparseIterator) setToFirstLabelInRoot() {
-	// it.posInTrie[0] = 0
-	// it.key = append(it.key, it.trie.labels.Read(0))
-	// it.key[0] = it.trie.labels.Read(0)
 }
 
 func (it *loudsSparseIterator) moveToLeftMostKey() {
@@ -151,21 +121,6 @@ func (it *loudsSparseIterator) next() {
 	if !ok {
 		return
 	}
-	// it.isAtTerminator = false
-	// pos := it.posInTrie[it.level-1]
-	// nodeNum := it.trie.getChildNodeNum(pos)
-	// pos = it.trie.getFirstLabelPos(nodeNum)
-	//
-	// for pos >= it.trie.louds.numBits || it.trie.louds.ReadBit(pos) {
-	// 	// if not child, try find next node of parent
-	// 	if it.level == 0 {
-	// 		it.isValid = false
-	// 		return
-	// 	}
-	// 	it.level--                       // goto parent
-	// 	pos = it.posInTrie[it.level] + 1 // brother node
-	// }
-	//
 	// read next label
 	label := it.trie.labels.Read(pos)
 	it.append(label, pos)
@@ -200,7 +155,7 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 	pos := it.trie.getFirstLabelPos(nodeNum)
 
 	level := 0
-	for level = it.startLevel; level < len(prefix); level++ {
+	for ; level < len(prefix); level++ {
 		nodeSize := it.trie.nodeSize(pos)
 		if pos, ok = it.trie.labels.Search(prefix[level], pos, nodeSize); !ok {
 			// if no exact match
@@ -270,11 +225,12 @@ func (it *loudsSparseIterator) getKey() []byte {
 	uniqueKey := it.key[:kLen]
 
 	pos := it.posInTrie[it.level-1]
+	// check whether has suffix key
 	suffix := it.trie.suffixes.GetSuffix(pos)
-	// fmt.Println(it.trie.suffixPos(pos))
 	if len(suffix) == 0 {
 		return uniqueKey
 	}
+	// result key = unique key + suffix key
 	expectLen := kLen + len(suffix)
 	if cap(it.fullKey) < expectLen {
 		it.fullKey = make([]byte, expectLen)

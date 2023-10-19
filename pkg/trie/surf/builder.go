@@ -3,7 +3,6 @@ package surf
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 )
 
@@ -13,7 +12,7 @@ const (
 	// leading to a node is also a valid key
 	terminator       = 0xff
 	fanout           = 256
-	sparseDenseRatio = 64
+	sparseDenseRatio = 65
 )
 
 var (
@@ -27,40 +26,22 @@ var (
 // hash suffix len = 0
 // real suffix len = 0
 type Builder struct {
-	// trie level < sparse start level  => LOUDS-Dense
-	// trie level >= sparse start level => LOUDS-Sparse
-
-	// LOUDS-Dense context: labels/hasChild/hasPrefix
-	//
-	// bitmap stores the branching labels for each node.
-	// (0<=label<=255), 256 is terminator
-	ldLabels [][]uint64
-	// one bit for each byte in labels to indicate whether
-	// a child branch continues(i.e. points to a sub-trie)
-	// or terminals(i.e. points to a value)
-	ldHasChild [][]uint64
-	// one bit per node to indicates whether the perfix that leads
-	// to the node is also a valid key.
-	ldIsPrefixKey [][]uint64
-
 	// LOUDS-Sparse context: labels/hasChild/louds
 	//
 	// store all the branching labels for each trie node
 	lsLabels [][]byte
-	// like LOUDS-Dense's hasChild
+	// one bit for each byte in labels to indicate whether
+	// a child branch continues(i.e. points to a sub-trie)
+	// or terminals(i.e. points to a value)
 	lsHasChild [][]uint64
 	// one bit for each byte in labels to indicate if a lable
 	// is the first node in trie
 	lsLouds [][]uint64
 
-	nodeCounts           []int // first node counts??? TODO:
 	isLastItemTerminator []bool
 
-	hasSuffix    [][]uint64
-	suffixes     [][][]byte
-	suffixCounts []int
-
-	sparseStartLevel int
+	hasSuffix [][]uint64
+	suffixes  [][][]byte
 
 	values [][]uint32
 }
@@ -71,7 +52,6 @@ func NewBuilder() *Builder {
 
 func (b *Builder) Write(w io.Writer) error {
 	height := b.treeHeight()
-	startLevel := b.getSparseStartLevel()
 	var (
 		bs [4]byte
 	)
@@ -80,20 +60,14 @@ func (b *Builder) Write(w io.Writer) error {
 	if _, err := w.Write(bs[:]); err != nil {
 		return err
 	}
-	// write start level
-	binary.LittleEndian.PutUint32(bs[:], uint32(startLevel))
-	if _, err := w.Write(bs[:]); err != nil {
-		return err
-	}
-
 	// write labels
-	numBytes := labelsSize(b.lsLabels, startLevel, height)
+	numBytes := labelsSize(b.lsLabels)
 	binary.LittleEndian.PutUint32(bs[:], uint32(numBytes))
 	if _, err := w.Write(bs[:]); err != nil {
 		return err
 	}
-	for l := startLevel; l < height; l++ {
-		if _, err := w.Write(b.lsLabels[l]); err != nil {
+	for level := range b.lsLabels {
+		if _, err := w.Write(b.lsLabels[level]); err != nil {
 			return err
 		}
 	}
@@ -103,13 +77,13 @@ func (b *Builder) Write(w io.Writer) error {
 	}
 	// write has child
 	hasChild := &BitVector{}
-	hasChild.Init(b.lsHasChild, numNodesPerLevel, startLevel, height)
+	hasChild.Init(b.lsHasChild, numNodesPerLevel)
 	if err := hasChild.write(w); err != nil {
 		return err
 	}
 	// write louds
 	louds := &BitVector{}
-	louds.Init(b.lsLouds, numNodesPerLevel, startLevel, height)
+	louds.Init(b.lsLouds, numNodesPerLevel)
 	if err := louds.write(w); err != nil {
 		return err
 	}
@@ -119,95 +93,6 @@ func (b *Builder) Write(w io.Writer) error {
 
 func (b *Builder) Build(keys [][]byte, values []uint32) {
 	b.buildSparse(keys, values)
-
-	// b.determineCutoffLevel()
-	// fmt.Println(b.sparseStartLevel)
-	// b.buildDense()
-}
-
-func (b *Builder) buildDense() {
-	for level := 0; level < b.sparseStartLevel; level++ {
-		b.initDenseVectors(level)
-		if b.numNodes(level) == 0 {
-			continue
-		}
-		nodeNum := 0
-		if b.isTerminator(level, 0) {
-			setBit(b.ldIsPrefixKey[level], 0)
-		} else {
-			b.setLabelAndChildIndicatorBitmap(level, nodeNum, 0)
-		}
-
-		for pos := 1; pos < b.numNodes(level); pos++ {
-			if b.isStartOfNode(level, pos) {
-				nodeNum++
-				if b.isTerminator(level, pos) {
-					setBit(b.ldIsPrefixKey[level], nodeNum)
-					continue
-				}
-			}
-			b.setLabelAndChildIndicatorBitmap(level, nodeNum, pos)
-		}
-	}
-}
-
-func (b *Builder) setLabelAndChildIndicatorBitmap(level, nodeNum, pos int) {
-	label := b.lsLabels[level][pos]
-	setBit(b.ldLabels[level], nodeNum*fanout+int(label))
-	if readBit(b.lsHasChild[level], pos) {
-		setBit(b.ldHasChild[level], nodeNum*fanout+int(label))
-	}
-}
-
-func (b *Builder) initDenseVectors(level int) {
-	b.ldLabels = append(b.ldLabels, []uint64{})
-	b.ldHasChild = append(b.ldHasChild, []uint64{})
-	b.ldIsPrefixKey = append(b.ldIsPrefixKey, []uint64{})
-	for nc := 0; nc < b.nodeCounts[level]; nc++ {
-		for i := 0; i < fanout; i += bitsSize {
-			b.ldLabels[level] = append(b.ldLabels[level], 0)
-			b.ldHasChild[level] = append(b.ldHasChild[level], 0)
-		}
-		if nc%bitsSize == 0 {
-			b.ldIsPrefixKey[level] = append(b.ldIsPrefixKey[level], 0)
-		}
-	}
-}
-
-func (b *Builder) determineCutoffLevel() {
-	cutoffLevel := 0
-	denseMem := b.computeDenseMem(cutoffLevel)
-	sparseMem := b.computeSparseMem(cutoffLevel)
-	for cutoffLevel < b.treeHeight() && denseMem*sparseDenseRatio < sparseMem {
-		fmt.Printf("mm=%d,sm=%d,cutleve=%d\n", denseMem, sparseMem, cutoffLevel)
-		cutoffLevel++
-		denseMem = b.computeDenseMem(cutoffLevel)
-		sparseMem = b.computeSparseMem(cutoffLevel)
-	}
-	cutoffLevel--
-	b.sparseStartLevel = cutoffLevel
-}
-
-func (b *Builder) computeDenseMem(downToLevel int) int {
-	mem := 0
-	for level := 0; level < downToLevel; level++ {
-		mem += (2 * fanout * b.nodeCounts[level])
-		if level > 0 {
-			mem += (b.nodeCounts[level-1]/8 + 1)
-		}
-		mem += (b.suffixCounts[level] * b.getSuffixLen() / 8)
-	}
-	return mem
-}
-
-func (b *Builder) computeSparseMem(startLevel int) int {
-	mem := 0
-	for level := startLevel; level < b.treeHeight(); level++ {
-		numNodes := len(b.lsLabels[level])
-		mem += (numNodes + 2*numNodes/8 + 1)
-		mem += (b.suffixCounts[level] * b.getSuffixLen() / 8)
-	}
-	return mem
 }
 
 func (b *Builder) buildSparse(keys [][]byte, values []uint32) {
@@ -283,7 +168,6 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 	// store louds
 	if isStartOfNode {
 		setBit(b.lsLouds[level], b.numNodes(level)-1)
-		b.nodeCounts[level]++
 	}
 	b.isLastItemTerminator[level] = isTerm
 
@@ -310,7 +194,6 @@ func (b *Builder) insertSuffix(key []byte, level int) {
 	// set parent node has suffix
 	setBit(b.hasSuffix[level-1], b.numNodes(level-1)-1)
 	b.suffixes[level] = append(b.suffixes[level], key[level:])
-	b.suffixCounts[level]++
 }
 
 func (b *Builder) insertValue(value uint32, level int) {
@@ -356,7 +239,7 @@ func (b *Builder) ensureLevel(level int) {
 }
 
 func (b *Builder) treeHeight() int {
-	return len(b.nodeCounts)
+	return len(b.lsLabels)
 }
 
 func (b *Builder) addLevel() {
@@ -372,9 +255,7 @@ func (b *Builder) addLevel() {
 	// b.valueCounts = append(b.valueCounts, 0)
 	// b.prefixes = append(b.prefixes, [][]byte{})
 	b.suffixes = append(b.suffixes, [][]byte{})
-	b.suffixCounts = append(b.suffixCounts, 0)
 
-	b.nodeCounts = append(b.nodeCounts, 0)
 	b.isLastItemTerminator = append(b.isLastItemTerminator, false)
 
 	level := b.treeHeight() - 1
@@ -382,10 +263,6 @@ func (b *Builder) addLevel() {
 	b.lsLouds[level] = append(b.lsLouds[level], 0)
 	// b.hasPrefix[level] = append(b.hasPrefix[level], 0)
 	b.hasSuffix[level] = append(b.hasSuffix[level], 0)
-}
-
-func (b *Builder) getSparseStartLevel() int {
-	return b.sparseStartLevel
 }
 
 func (b *Builder) getLabels() [][]byte {

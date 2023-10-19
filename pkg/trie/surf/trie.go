@@ -16,7 +16,6 @@ import (
 // children(i) = last child(i) - first child(i)
 // child(i,num) = first child(i) + num
 type Trie struct {
-	loudsDense  *loudsDense
 	loudsSparse *loudsSparse
 }
 
@@ -28,29 +27,13 @@ func (trie *Trie) Create(keys [][]byte, values []uint32) {
 	builder := NewBuilder()
 	builder.Build(keys, values)
 
-	// init Louds-Dense
-	if builder.getSparseStartLevel() > 0 {
-		trie.loudsDense = &loudsDense{}
-		trie.loudsDense.Init(builder)
-	}
-
 	// init Louds-Sparse
 	trie.loudsSparse = &loudsSparse{}
 	trie.loudsSparse.Init(builder)
 }
 
 func (trie *Trie) Get(key []byte) (value uint32, exist bool) {
-	nodeNum := 0
-	if trie.loudsDense == nil {
-		return trie.loudsSparse.lookupKey(key, nodeNum)
-	}
-
-	if nodeNum, exist = trie.loudsDense.lookupKey(key); !exist {
-		return 0, false
-	} else if nodeNum != 0 {
-		return trie.loudsSparse.lookupKey(key, nodeNum)
-	}
-	return
+	return trie.loudsSparse.lookupKey(key)
 }
 
 func (trie *Trie) Iterator() *Iterator {

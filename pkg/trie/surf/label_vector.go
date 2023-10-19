@@ -18,21 +18,21 @@ func NewLabelVector() *LabelVector {
 	return &LabelVector{}
 }
 
-func (lv *LabelVector) Init(labels [][]byte, startLevel, trieHeight int) {
-	numBytes := labelsSize(labels, startLevel, trieHeight)
+func (lv *LabelVector) Init(labels [][]byte) {
+	numBytes := labelsSize(labels)
 	lv.labels = make([]byte, numBytes)
 
 	pos := 0
-	for l := startLevel; l < trieHeight; l++ {
+	for l := range labels {
 		copy(lv.labels[pos:], labels[l])
 		pos += len(labels[l])
 	}
 }
 
-func labelsSize(labels [][]byte, startLevel, trieHeight int) int {
-	numBytes := 0 // TODO: 1=> root?
-	for l := startLevel; l < trieHeight; l++ {
-		numBytes += len(labels[l])
+func labelsSize(labels [][]byte) int {
+	numBytes := 0
+	for _, l := range labels {
+		numBytes += len(l)
 	}
 	return numBytes
 }
@@ -108,10 +108,10 @@ type compressPathVector struct {
 	data          []byte
 }
 
-func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte, startLevel, trieHeight int) {
-	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel, startLevel, trieHeight)
+func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte) {
+	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel)
 	offset := 0
-	for level := startLevel; level < trieHeight; level++ {
+	for level := range data {
 		levelData := data[level]
 		for idx := range levelData {
 			d := levelData[idx]
@@ -143,19 +143,27 @@ func (v *SuffixVector) GetSuffix(pos int) []byte {
 	return v.GetPath(pos)
 }
 
+func (v *SuffixVector) CheckSuffix(key []byte, depth, nodeID int) bool {
+	suffix := v.GetSuffix(nodeID)
+	if depth+1 >= len(key) {
+		return len(suffix) == 0
+	}
+	return bytes.Equal(suffix, key[depth+1:])
+}
+
 type ValueVector struct {
 	values []uint32
 }
 
-func (v *ValueVector) Init(valuesPerLevel [][]uint32, startLevel, height int) {
+func (v *ValueVector) Init(valuesPerLevel [][]uint32) {
 	size := 0
-	for level := startLevel; level < height; level++ {
-		size += len(valuesPerLevel[level])
+	for _, values := range valuesPerLevel {
+		size += len(values)
 	}
 	v.values = make([]uint32, size)
 
 	pos := 0
-	for level := startLevel; level < height; level++ {
+	for level := range valuesPerLevel {
 		values := valuesPerLevel[level]
 		for _, val := range values {
 			v.values[pos] = val

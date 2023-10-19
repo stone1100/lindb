@@ -3,6 +3,8 @@ package surf
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTrie_Build(t *testing.T) {
@@ -23,7 +25,8 @@ func TestTrie_Build(t *testing.T) {
 
 	fmt.Println(trie.String())
 	num, ok := trie.Get([]byte("trip"))
-	fmt.Printf("get=>num=%d,ok=%t\n", num, ok)
+	assert.Equal(t, uint32(10), num)
+	assert.True(t, ok)
 
 	it := trie.Iterator()
 	it.First()
@@ -65,6 +68,12 @@ func TestTrie_BuildSuffix(t *testing.T) {
 		[]byte("so"),
 	}, []uint32{1, 2, 3, 4, 5, 6})
 	fmt.Println(trie.String())
+	num, ok := trie.Get([]byte("hello"))
+	assert.Equal(t, uint32(1), num)
+	assert.True(t, ok)
+	num, ok = trie.Get([]byte("hel"))
+	assert.Equal(t, uint32(0), num)
+	assert.False(t, ok)
 	it := trie.Iterator()
 	it.First()
 	for it.IsValid() {
