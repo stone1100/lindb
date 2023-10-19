@@ -96,3 +96,27 @@ func (lv *LabelVector) String() string {
 	}
 	return sb.String()
 }
+
+type compressPathVector struct {
+	hasPathVector BitVectorRank
+	offsets       []int
+	data          []byte
+}
+
+func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte, startLevel, trieHeight int) {
+	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel, startLevel, trieHeight)
+	offset := 0
+	for level := startLevel; level < trieHeight; level++ {
+		levelData := data[level]
+		for idx := range levelData {
+			d := levelData[idx]
+			cpv.offsets = append(cpv.offsets, offset)
+			offset += len(d)
+			cpv.data = append(cpv.data, d...)
+		}
+	}
+}
+
+type SuffixVector struct {
+	compressPathVector
+}

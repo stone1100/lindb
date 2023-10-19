@@ -12,6 +12,7 @@ type loudsSparse struct {
 	labels   *LabelVector
 	hasChild *BitVectorRank
 	louds    *BitVectorSelect
+	suffixes *SuffixVector
 
 	height          int
 	startLevel      int
@@ -50,6 +51,10 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	// init louds-sparse louds
 	ls.louds = &BitVectorSelect{}
 	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel, ls.startLevel, ls.height)
+
+	// init suffix
+	ls.suffixes = &SuffixVector{}
+	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes, ls.startLevel, ls.height)
 }
 
 func (ls *loudsSparse) lookupKey(key []byte, inNodeNum int) (nodeNum int, ok bool) {

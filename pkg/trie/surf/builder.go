@@ -251,9 +251,8 @@ func (b *Builder) isLevelEmpty(level int) bool {
 func (b *Builder) insertSuffix(key []byte, level int) {
 	b.ensureLevel(level)
 
-	suffixWord := key[level:]
-	//FIXME: impl
-	b.suffixes[level] = append(b.suffixes[level], suffixWord)
+	setBit(b.hasSuffix[level], b.numNodes(level)-1)
+	b.suffixes[level] = append(b.suffixes[level], key[level:])
 	b.suffixCounts[level]++
 }
 
@@ -289,6 +288,7 @@ func (b *Builder) numNodes(level int) int {
 }
 
 func (b *Builder) ensureLevel(level int) {
+	// level should be at most equal to trie height
 	if level >= b.treeHeight() {
 		b.addLevel()
 	}
