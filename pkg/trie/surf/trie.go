@@ -2,8 +2,6 @@ package surf
 
 import (
 	"io"
-
-	"github.com/lindb/lindb/pkg/stream"
 )
 
 // node num = rank(i)
@@ -48,10 +46,9 @@ func (trie *Trie) Write(w io.Writer) (err error) {
 }
 
 func (trie *Trie) Unmarshal(buf []byte) (err error) {
-	reader := stream.NewReader(buf)
 	// unmarshal Louds-Sparse
 	loudsSparse := &loudsSparse{}
-	if err = loudsSparse.unmarshal(reader); err != nil {
+	if err = loudsSparse.unmarshal(buf); err != nil {
 		return err
 	}
 	trie.loudsSparse = loudsSparse

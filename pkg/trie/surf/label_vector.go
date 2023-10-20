@@ -6,8 +6,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-
-	"github.com/lindb/lindb/pkg/stream"
 )
 
 type LabelVector struct {
@@ -88,10 +86,12 @@ func (lv *LabelVector) write(w io.Writer) error {
 	return nil
 }
 
-func (lv *LabelVector) unmarshal(reader *stream.Reader) error {
-	size := reader.ReadUint32()
-	lv.labels = reader.ReadSlice(int(size))
-	return nil
+func (lv *LabelVector) unmarshal(buf []byte, pos int) (int, error) {
+	size := int(UnmarshalUint32(buf, pos))
+	pos += 4
+	lv.labels = buf[pos : pos+size]
+	pos += size
+	return pos, nil
 }
 
 func (lv *LabelVector) String() string {
@@ -110,6 +110,10 @@ type compressPathVector struct {
 
 func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte) {
 	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel)
+	cpv.initData(numNodesPerLevel, data)
+}
+
+func (cpv *compressPathVector) initData(numNodesPerLevel []int, data [][][]byte) {
 	offset := 0
 	for level := range data {
 		levelData := data[level]
@@ -136,10 +140,6 @@ func (cpv *compressPathVector) GetPath(pos int) []byte {
 }
 
 func (cpv *compressPathVector) write(w io.Writer) error {
-	if err := cpv.hasPathVector.write(w); err != nil {
-		return err
-	}
-
 	var length [8]byte
 	binary.LittleEndian.PutUint32(length[:4], uint32(len(cpv.offsets)*4))
 	binary.LittleEndian.PutUint32(length[4:], uint32(len(cpv.data)))
@@ -157,17 +157,22 @@ func (cpv *compressPathVector) write(w io.Writer) error {
 	return nil
 }
 
-func (cpv *compressPathVector) unmarshal(reader *stream.Reader) error {
-	if err := cpv.hasPathVector.unmarshal(reader); err != nil {
-		return err
+func (cpv *compressPathVector) unmarshal(buf []byte, pos int) (r int, err error) {
+	if r, err = cpv.hasPathVector.unmarshal(buf, pos); err != nil {
+		return 0, err
 	}
-	offsetsLen := reader.ReadUint32()
-	dataLen := reader.ReadUint32()
+	pos = r
+	offsetsLen := int(UnmarshalUint32(buf, pos))
+	pos += 4
+	dataLen := int(UnmarshalUint32(buf, pos))
+	pos += 4
+	end := pos + offsetsLen
 	// read offsets
-	cpv.offsets = bytesToU32Slice(reader.ReadBytes(int(offsetsLen)))
+	cpv.offsets = bytesToU32Slice(buf[pos:end])
+	pos = end
 	// read data
-	cpv.data = reader.ReadBytes(int(dataLen))
-	return nil
+	cpv.data = buf[pos:]
+	return pos + dataLen, nil
 }
 
 type SuffixVector struct {
@@ -219,9 +224,9 @@ func (v *ValueVector) write(w io.Writer) error {
 	return nil
 }
 
-func (v *ValueVector) unmarshal(totalKeys int, reader *stream.Reader) error {
+func (v *ValueVector) unmarshal(totalKeys int, buf []byte, pos int) (int, error) {
 	dataLen := totalKeys * 4
-	data := reader.ReadBytes(dataLen)
-	v.values = bytesToU32Slice(data)
-	return nil
+	end := pos + dataLen
+	v.values = bytesToU32Slice(buf[pos:end])
+	return end, nil
 }

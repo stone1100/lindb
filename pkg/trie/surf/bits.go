@@ -1,6 +1,7 @@
 package surf
 
 import (
+	"encoding/binary"
 	"math/bits"
 	"reflect"
 	"unsafe"
@@ -16,30 +17,6 @@ func init() {
 	}
 }
 
-func intSliceToBytes(u []int) []byte {
-	if len(u) == 0 {
-		return nil
-	}
-	var b []byte
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	hdr.Len = len(u) * 4
-	hdr.Cap = hdr.Len
-	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
-	return b
-}
-
-func bytesToIntSlice(b []byte) []int {
-	if len(b) == 0 {
-		return nil
-	}
-	var u32s []int
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
-	hdr.Len = len(b) / 4
-	hdr.Cap = hdr.Len
-	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
-	return u32s
-}
-
 func u32SliceToBytes(u []uint32) []byte {
 	if len(u) == 0 {
 		return nil
@@ -50,6 +27,17 @@ func u32SliceToBytes(u []uint32) []byte {
 	hdr.Cap = hdr.Len
 	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
 	return b
+}
+
+// MarshalUint32 appends marshaled v to dst and returns the result.
+func MarshalUint32(dst []byte, u uint32) []byte {
+	return append(dst, byte(u>>24), byte(u>>16), byte(u>>8), byte(u))
+}
+
+// UnmarshalUint32 returns unmarshaled uint32 from src.
+func UnmarshalUint32(src []byte, pos int) uint32 {
+	// This is faster than the manual conversion.
+	return binary.LittleEndian.Uint32(src[pos:])
 }
 
 func bytesToU32Slice(b []byte) []uint32 {
@@ -63,6 +51,7 @@ func bytesToU32Slice(b []byte) []uint32 {
 	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
 	return u32s
 }
+
 func u64SliceToBytes(u []uint64) []byte {
 	if len(u) == 0 {
 		return nil
@@ -75,15 +64,15 @@ func u64SliceToBytes(u []uint64) []byte {
 	return b
 }
 
-func bytesToU64Slice(b []byte) []uint64 {
+func bytesToU64Slice(b []byte, pos, size int) []uint64 {
 	if len(b) == 0 {
 		return nil
 	}
 	var u32s []uint64
 	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
-	hdr.Len = len(b) / 8
+	hdr.Len = size
 	hdr.Cap = hdr.Len
-	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
+	hdr.Data = uintptr(unsafe.Pointer(&b[pos]))
 	return u32s
 }
 

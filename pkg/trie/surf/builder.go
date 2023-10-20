@@ -93,17 +93,27 @@ func (b *Builder) Write(w io.Writer) error {
 		return err
 	}
 	// write suffixes
+	hasSuffixes := &BitVector{}
+	hasSuffixes.Init(b.hasSuffix, numNodesPerLevel)
+	if err := hasSuffixes.write(w); err != nil {
+		return err
+	}
 	suffixes := &SuffixVector{}
-	suffixes.Init(b.hasSuffix, numNodesPerLevel, b.suffixes)
+	suffixes.initData(numNodesPerLevel, b.suffixes)
 	if err := suffixes.write(w); err != nil {
 		return err
 	}
-	// write suffixes
-	values := &ValueVector{}
-	values.Init(b.values)
-	if err := values.write(w); err != nil {
-		return err
+	// write values
+	for level := range b.values {
+		values := b.values[level]
+		for _, val := range values {
+			binary.LittleEndian.PutUint32(bs[:], uint32(val))
+			if _, err := w.Write(bs[:]); err != nil {
+				return err
+			}
+		}
 	}
+
 	return nil
 }
 

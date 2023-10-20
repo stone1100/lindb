@@ -5,8 +5,6 @@ import (
 	"io"
 	"math/bits"
 	"strings"
-
-	"github.com/lindb/lindb/pkg/stream"
 )
 
 const (
@@ -69,11 +67,14 @@ func (bv *BitVector) write(w io.Writer) error {
 	return nil
 }
 
-func (bv *BitVector) unmarshal(reader *stream.Reader) error {
-	bv.numBits = int(reader.ReadUint32())
-	bitSize := bv.bitsSize()
-	bv.bits = bytesToU64Slice(reader.ReadSlice(bitSize))
-	return nil
+func (bv *BitVector) unmarshal(buf []byte, pos int) (int, error) {
+	bv.numBits = int(UnmarshalUint32(buf, pos))
+	pos += 4
+	words := bv.numWords()
+
+	bv.bits = bytesToU64Slice(buf, pos, words)
+	pos += words * 8
+	return pos, nil
 }
 
 func (bv *BitVector) DistanceToNextSetBit(pos int) int {
@@ -177,12 +178,12 @@ func (bvs *BitVectorSelect) initLut() {
 	copy(bvs.selectLut, lut)
 }
 
-func (bvs *BitVectorSelect) unmarshal(reader *stream.Reader) error {
-	if err := bvs.BitVector.unmarshal(reader); err != nil {
-		return err
+func (bvs *BitVectorSelect) unmarshal(buf []byte, pos int) (r int, err error) {
+	if r, err = bvs.BitVector.unmarshal(buf, pos); err != nil {
+		return 0, err
 	}
 	bvs.initLut()
-	return nil
+	return r, nil
 }
 
 // Select returns the position of the rank-th 1 bit.
@@ -257,11 +258,11 @@ func (bvr *BitVectorRank) Rank(pos int) int {
 	return bvr.rankLut[blockOff] + popcountBlock(bvr.bits, blockOff*wordPreBlk, bitsOff+1)
 }
 
-func (bvr *BitVectorRank) unmarshal(reader *stream.Reader) error {
-	if err := bvr.BitVector.unmarshal(reader); err != nil {
-		return nil
+func (bvr *BitVectorRank) unmarshal(buf []byte, pos int) (r int, err error) {
+	if r, err = bvr.BitVector.unmarshal(buf, pos); err != nil {
+		return 0, nil
 	}
 	bvr.blockSize = rankSparseBlockSize
 	bvr.initLut()
-	return nil
+	return r, nil
 }

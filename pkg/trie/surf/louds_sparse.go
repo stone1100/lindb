@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	"github.com/lindb/lindb/pkg/stream"
 )
 
 type loudsSparse struct {
@@ -141,37 +139,40 @@ func (ls *loudsSparse) write(w io.Writer) error {
 	return nil
 }
 
-func (ls *loudsSparse) unmarshal(reader *stream.Reader) (err error) {
-	ls.totalKeys = int(reader.ReadUint32())
-	ls.height = int(reader.ReadUint32())
+func (ls *loudsSparse) unmarshal(buf []byte) (err error) {
+	pos := 0
+	ls.totalKeys = int(UnmarshalUint32(buf, pos))
+	pos += 4
+	ls.height = int(UnmarshalUint32(buf, pos))
+	pos += 4
 
 	// read labels
 	labels := &LabelVector{}
-	if err := labels.unmarshal(reader); err != nil {
+	if pos, err = labels.unmarshal(buf, pos); err != nil {
 		return err
 	}
 	ls.labels = labels
 	// read has child
 	hasChild := &BitVectorRank{}
-	if err := hasChild.unmarshal(reader); err != nil {
+	if pos, err = hasChild.unmarshal(buf, pos); err != nil {
 		return nil
 	}
 	ls.hasChild = hasChild
 	// read louds
 	louds := &BitVectorSelect{}
-	if err := louds.unmarshal(reader); err != nil {
+	if pos, err = louds.unmarshal(buf, pos); err != nil {
 		return nil
 	}
 	ls.louds = louds
 	// read suffixes
 	suffixes := &SuffixVector{}
-	if err := suffixes.unmarshal(reader); err != nil {
+	if pos, err = suffixes.unmarshal(buf, pos); err != nil {
 		return nil
 	}
 	ls.suffixes = suffixes
 	// read values
 	values := &ValueVector{}
-	if err := values.unmarshal(ls.totalKeys, reader); err != nil {
+	if _, err = values.unmarshal(ls.totalKeys, buf, pos); err != nil {
 		return nil
 	}
 	ls.values = values
