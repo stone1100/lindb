@@ -46,10 +46,11 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	ls.values.Init(builder.values)
 }
 
-func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
+func (ls *loudsSparse) lookupKey(key []byte) (value uint32, result bool) {
 	nodeNum := 0
 	pos := ls.getFirstLabelPos(nodeNum)
 
+	ok := false
 	level := 0
 	for ; level < len(key); level++ {
 		// check labels if exist
@@ -60,7 +61,7 @@ func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
 		if !ls.hasChild.ReadBit(pos) {
 			if ok = ls.suffixes.CheckSuffix(key, level+1, pos); ok {
 				value = ls.values.Get(ls.valuePos(pos))
-				ok = true
+				result = true
 			}
 			return
 		}
@@ -72,7 +73,7 @@ func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
 	if ls.labels.Read(pos) == terminator && !ls.hasChild.ReadBit(pos) {
 		if ok = ls.suffixes.CheckSuffix(key, level+1, pos); ok {
 			value = ls.values.Get(ls.valuePos(pos))
-			ok = true
+			result = true
 		}
 		return
 	}

@@ -24,11 +24,14 @@ func (trie *Trie) Create(keys [][]byte, values []uint32) {
 	builder := NewBuilder()
 	builder.Build(keys, values)
 
+	trie.Init(builder)
+}
+
+func (trie *Trie) Init(builder *Builder) {
 	// init Louds-Sparse
 	trie.loudsSparse = &loudsSparse{}
 	trie.loudsSparse.Init(builder)
 }
-
 func (trie *Trie) Get(key []byte) (value uint32, exist bool) {
 	return trie.loudsSparse.lookupKey(key)
 }

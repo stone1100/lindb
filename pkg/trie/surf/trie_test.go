@@ -1,11 +1,54 @@
 package surf
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type kvPair struct {
+	keys   [][]byte
+	values []uint32
+}
+
+func (p kvPair) Len() int {
+	return len(p.keys)
+}
+
+func (p kvPair) Less(i, j int) bool {
+	return bytes.Compare(p.keys[i], p.keys[j]) < 0
+}
+
+func (p kvPair) Swap(i, j int) {
+	p.keys[i], p.keys[j] = p.keys[j], p.keys[i]
+	p.values[i], p.values[j] = p.values[j], p.values[i]
+}
+
+func (p kvPair) Sort() {
+	sort.Sort(p)
+}
+
+func newTestIPs(batchSize int) (ips [][]byte, ids []uint32) {
+	var count int
+	for x := 10; x > 0; x-- {
+		for y := 1; y < batchSize; y++ {
+			for z := batchSize - 1; z > 0; z-- {
+				ips = append(ips, []byte(fmt.Sprintf("%d.%d.%d.%d", x, y, y, z)))
+				count++
+				ids = append(ids, uint32(count))
+			}
+		}
+	}
+	kvPair{keys: ips, values: ids}.Sort()
+	return
+}
 
 func TestTrie_Build(t *testing.T) {
 	trie := NewTrie()
@@ -88,4 +131,113 @@ func TestTrie_BuildSuffix(t *testing.T) {
 		fmt.Printf("key=%s,value=%d\n", string(it.Key()), it.Value())
 		it.Next()
 	}
+}
+
+func TestTrie_Words(t *testing.T) {
+	var keys [][]byte
+	var values []uint32
+	keysString := []string{
+		"a",
+		"ab",
+		"abc",
+		"abcdefgh",
+		"abcdefghijklmnopqrstuvwxyz",
+		"abcdefghijkl",
+		"b",
+		"ice",
+		"zzzzzz",
+	}
+	for idx, key := range keysString {
+		keys = append(keys, []byte(key))
+		values = append(values, uint32(idx))
+	}
+	kvPair{keys: keys, values: values}.Sort()
+	trie := NewTrie()
+	trie.Create(keys, values)
+	examples := []struct {
+		input string
+		ok    bool
+	}{
+		{"a", true},
+		{"ab", true},
+		{"abc", true},
+		{"abcd", false},
+		{"abcdefghijklmnopqrstuvwxyz", true},
+		{"abcdefghijkl", true},
+		{"abcdefghijklm", false},
+		{"b", true},
+		{"bb", false},
+		{"i", false},
+		{"ic", false},
+		{"ice", true},
+		{"ices", false},
+		{"zzzzzz", true},
+		{"zzzzz", false},
+		{"zzzzzzz", false},
+	}
+
+	for _, example := range examples {
+		_, ok := trie.Get([]byte(example.input))
+		assert.Equalf(t, example.ok, ok, example.input)
+	}
+}
+
+func assertTestData(t *testing.T, path string) {
+	var keys [][]byte
+	var values []uint32
+	f, err := os.Open(path)
+	assert.Nil(t, err)
+	r, err := gzip.NewReader(f)
+	assert.Nil(t, err)
+
+	data, err := io.ReadAll(r)
+	assert.Nil(t, err)
+	lines := strings.Split(string(data), "\n")
+	for i, line := range lines {
+		keys = append(keys, []byte(line))
+		values = append(values, uint32(i))
+	}
+	kvPair{keys: keys, values: values}.Sort()
+	builder := NewBuilder()
+	builder.Build(keys, values)
+	trie := NewTrie()
+	trie.Init(builder)
+
+	if len(keys) == 0 || len(values) == 0 {
+		panic("length is zero")
+	}
+	for idx := range keys {
+		value, ok := trie.Get(keys[idx])
+		assert.True(t, ok)
+		assert.Equal(t, values[idx], value)
+	}
+
+	w := bytes.NewBuffer([]byte{})
+	err = builder.Write(w)
+	assert.NoError(t, err)
+	data = w.Bytes()
+	trie2 := NewTrie()
+	assert.NoError(t, trie2.Unmarshal(data))
+
+	itr := trie2.Iterator()
+	itr.First()
+	var idx = 0
+	for itr.IsValid() {
+		assert.Equal(t, values[idx], itr.Value())
+		assert.Equal(t, keys[idx], itr.Key())
+		itr.Next()
+		idx++
+	}
+}
+
+func TestTrie_TestData_Words(t *testing.T) {
+	assertTestData(t, "../testdata/words.txt.gz")
+}
+
+func TestTrie_TestData_UUID(t *testing.T) {
+	assertTestData(t, "testdata/uuid.txt.gz")
+}
+
+func TestTrie_TestData_Hsk_words(t *testing.T) {
+	assertTestData(t, "testdata/hsk_words.txt.gz")
 }
