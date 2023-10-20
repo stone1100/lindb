@@ -12,6 +12,7 @@ const (
 	// terminator($) indicates the situation where a prefix strings
 	// leading to a node is also a valid key
 	terminator = 0xff
+	one        = uint64(1)
 )
 
 var (
@@ -42,7 +43,8 @@ type Builder struct {
 	hasSuffix [][]uint64
 	suffixes  [][][]byte
 
-	values [][]uint32
+	values     [][]uint32
+	nodeCounts []int
 
 	height    int
 	totalKeys int
@@ -161,6 +163,7 @@ func (b *Builder) Reset() {
 	b.hasSuffix = b.hasSuffix[:0]
 	b.suffixes = b.suffixes[:0]
 	b.isLastItemTerminator = b.isLastItemTerminator[:0]
+	b.nodeCounts = b.nodeCounts[:0]
 }
 
 func (b *Builder) Build(keys [][]byte, values []uint32) {
@@ -179,7 +182,7 @@ func (b *Builder) buildSparse(keys [][]byte, values []uint32) {
 		level := 0
 		if previousKey != nil {
 			for level < len(key) && level < len(previousKey) && key[level] == previousKey[level] {
-				setBit(b.lsHasChild[level], b.numNodes(level)-1)
+				setBit(b.lsHasChild[level], b.nodeCounts[level]-1)
 				level++
 			}
 		}
@@ -247,14 +250,15 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 	// sets parent node's child indicator
 	if level > 0 {
 		// all keys is sorted, so new key will append right
-		setBit(b.lsHasChild[level-1], b.numNodes(level-1)-1)
+		setBit(b.lsHasChild[level-1], b.nodeCounts[level-1]-1)
 	}
 	// store label
 	b.lsLabels[level] = append(b.lsLabels[level], key)
+	b.nodeCounts[level]++
 
 	// store louds
 	if isStartOfNode {
-		setBit(b.lsLouds[level], b.numNodes(level)-1)
+		setBit(b.lsLouds[level], b.nodeCounts[level]-1)
 	}
 	b.isLastItemTerminator[level] = isTerm
 
@@ -262,8 +266,8 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 }
 
 func (b *Builder) moveToNextNodeSlot(level int) {
-	numNodes := b.numNodes(level)
-	if numNodes%bitsSize == 0 {
+	numNodes := b.nodeCounts[level]
+	if wordsIndex(uint(numNodes)) == 0 {
 		// put next slot for bit vector context
 		b.lsHasChild[level] = append(b.lsHasChild[level], 0)
 		b.lsLouds[level] = append(b.lsLouds[level], 0)
@@ -279,7 +283,7 @@ func (b *Builder) isLevelEmpty(level int) bool {
 
 func (b *Builder) insertSuffix(key []byte, level int) {
 	suffixLevel := level - 1 // need -1, because after insert label, level will move next
-	setBit(b.hasSuffix[suffixLevel], b.numNodes(suffixLevel)-1)
+	setBit(b.hasSuffix[suffixLevel], b.nodeCounts[suffixLevel]-1)
 	b.suffixes[suffixLevel] = append(b.suffixes[suffixLevel], key[level:])
 }
 
@@ -294,7 +298,7 @@ func (b *Builder) isSameKey(a, c []byte) bool {
 // skipCommonPrefix skips common prefix, returns level that different char.
 func (b *Builder) skipCommonPrefix(key []byte) (level int) {
 	for level < len(key) && b.isCommonPrefix(key[level], level) {
-		setBit(b.lsHasChild[level], b.numNodes(level)-1)
+		setBit(b.lsHasChild[level], b.nodeCounts[level]-1)
 		level++
 	}
 	return level
@@ -309,14 +313,18 @@ func (b *Builder) isCommonPrefix(c byte, level int) bool {
 }
 
 func setBit(bs []uint64, pos int) {
-	wordOff := pos / bitsSize
-	bitsOff := pos % bitsSize
-	bs[wordOff] |= uint64(1) << bitsOff
+	// wordOff := pos / bitsSize
+	// bitsOff := pos % bitsSize
+	bs[pos>>6] |= one << wordsIndex(uint(pos))
 }
 
-func (b *Builder) numNodes(level int) int {
-	return len(b.lsLabels[level])
+func wordsIndex(i uint) uint {
+	return i & (bitsSize - 1)
 }
+
+// func (b *Builder) numNodes(level int) int {
+// 	return len(b.lsLabels[level])
+// }
 
 func (b *Builder) ensureLevel(level int) {
 	// level should be at most equal to trie height
@@ -335,6 +343,7 @@ func (b *Builder) addLevel() {
 	b.values = append(b.values, []uint32{})
 	b.suffixes = append(b.suffixes, [][]byte{})
 	b.isLastItemTerminator = append(b.isLastItemTerminator, false)
+	b.nodeCounts = append(b.nodeCounts, 0)
 
 	level := len(b.lsLabels) - 1
 	b.lsHasChild[level] = append(b.lsHasChild[level], 0)
