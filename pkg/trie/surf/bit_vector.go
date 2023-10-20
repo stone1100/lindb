@@ -5,6 +5,8 @@ import (
 	"io"
 	"math/bits"
 	"strings"
+
+	"github.com/bits-and-blooms/bitset"
 )
 
 const (
@@ -17,13 +19,14 @@ type BitVector struct {
 	bits    []uint64
 }
 
-func (bv *BitVector) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
+func (bv *BitVector) Init(bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
 	bv.totalNumBits(numNodesPerLevel)
 	bv.bits = make([]uint64, bv.numWords())
 
 	bitShift := 0
 	wordID := 0
-	for level, bitsBlock := range bitsPerLevel {
+	for level := range bitsPerLevel {
+		bitsBlock := bitsPerLevel[level].Bytes()
 		n := numNodesPerLevel[level]
 		if n == 0 {
 			continue
@@ -153,7 +156,7 @@ type BitVectorSelect struct {
 	selectLut []int
 }
 
-func (bvs *BitVectorSelect) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
+func (bvs *BitVectorSelect) Init(bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
 	bvs.BitVector.Init(bitsPerLevel, numNodesPerLevel)
 
 	bvs.initLut()
@@ -231,7 +234,7 @@ type BitVectorRank struct {
 	rankLut   []int
 }
 
-func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][]uint64, numNodesPerLevel []int) {
+func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
 	bvr.BitVector.Init(bitsPerLevel, numNodesPerLevel)
 	bvr.blockSize = blockSize
 	bvr.initLut()

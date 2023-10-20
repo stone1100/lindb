@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 
 	"io"
+
+	"github.com/bits-and-blooms/bitset"
 )
 
 const (
@@ -33,18 +35,18 @@ type Builder struct {
 	// one bit for each byte in labels to indicate whether
 	// a child branch continues(i.e. points to a sub-trie)
 	// or terminals(i.e. points to a value)
-	lsHasChild [][]uint64
+	lsHasChild []*bitset.BitSet
 	// one bit for each byte in labels to indicate if a lable
 	// is the first node in trie
-	lsLouds [][]uint64
+	lsLouds []*bitset.BitSet
 
 	isLastItemTerminator []bool
 
-	hasSuffix [][]uint64
+	hasSuffix []*bitset.BitSet
 	suffixes  [][][]byte
 
 	values     [][]uint32
-	nodeCounts []int
+	nodeCounts []uint
 
 	height    int
 	totalKeys int
@@ -133,25 +135,15 @@ func (b *Builder) Reset() {
 	}
 	b.lsLabels = b.lsLabels[:0]
 
-	// cache lsHasChild
-	for idx := range b.lsHasChild {
-		b.cachedUint64s = append(b.cachedUint64s, b.lsHasChild[idx][:0])
-	}
 	b.lsHasChild = b.lsHasChild[:0]
 
 	// cache lsLoudsBits
-	for idx := range b.lsLouds {
-		b.cachedUint64s = append(b.cachedUint64s, b.lsLouds[idx][:0])
-	}
 	b.lsLouds = b.lsLouds[:0]
 
 	// reset values
 	b.values = b.values[:0]
 
 	// cache has suffix
-	for idx := range b.hasSuffix {
-		b.hasSuffix = append(b.hasSuffix, b.hasSuffix[idx][:0])
-	}
 	// reset suffixes
 	b.hasSuffix = b.hasSuffix[:0]
 	b.suffixes = b.suffixes[:0]
@@ -182,7 +174,7 @@ func (b *Builder) buildSparse(keys [][]byte, values []uint32) {
 		level := 0
 		if previousKey != nil {
 			for level < len(key) && level < len(previousKey) && key[level] == previousKey[level] {
-				setBit(b.lsHasChild[level], b.nodeCounts[level]-1)
+				b.lsHasChild[level].Set(b.nodeCounts[level] - 1)
 				level++
 			}
 		}
@@ -250,7 +242,7 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 	// sets parent node's child indicator
 	if level > 0 {
 		// all keys is sorted, so new key will append right
-		setBit(b.lsHasChild[level-1], b.nodeCounts[level-1]-1)
+		b.lsHasChild[level-1].Set(b.nodeCounts[level-1] - 1)
 	}
 	// store label
 	b.lsLabels[level] = append(b.lsLabels[level], key)
@@ -258,23 +250,23 @@ func (b *Builder) insertKeyByte(key byte, level int, isStartOfNode, isTerm bool)
 
 	// store louds
 	if isStartOfNode {
-		setBit(b.lsLouds[level], b.nodeCounts[level]-1)
+		b.lsLouds[level].Set(b.nodeCounts[level] - 1)
 	}
 	b.isLastItemTerminator[level] = isTerm
 
-	b.moveToNextNodeSlot(level)
+	// b.moveToNextNodeSlot(level)
 }
 
-func (b *Builder) moveToNextNodeSlot(level int) {
-	numNodes := b.nodeCounts[level]
-	if wordsIndex(uint(numNodes)) == 0 {
-		// put next slot for bit vector context
-		b.lsHasChild[level] = append(b.lsHasChild[level], 0)
-		b.lsLouds[level] = append(b.lsLouds[level], 0)
-
-		b.hasSuffix[level] = append(b.hasSuffix[level], 0)
-	}
-}
+// func (b *Builder) moveToNextNodeSlot(level int) {
+// 	numNodes := b.nodeCounts[level]
+// 	if wordsIndex(uint(numNodes)) == 0 {
+// 		// put next slot for bit vector context
+// 		b.lsHasChild[level] = append(b.lsHasChild[level], 0)
+// 		b.lsLouds[level] = append(b.lsLouds[level], 0)
+//
+// 		b.hasSuffix[level] = append(b.hasSuffix[level], 0)
+// 	}
+// }
 
 // isLevelEmpty returns whether level is empty.
 func (b *Builder) isLevelEmpty(level int) bool {
@@ -283,7 +275,8 @@ func (b *Builder) isLevelEmpty(level int) bool {
 
 func (b *Builder) insertSuffix(key []byte, level int) {
 	suffixLevel := level - 1 // need -1, because after insert label, level will move next
-	setBit(b.hasSuffix[suffixLevel], b.nodeCounts[suffixLevel]-1)
+	// setBit(b.hasSuffix[suffixLevel], b.nodeCounts[suffixLevel]-1)
+	b.hasSuffix[suffixLevel].Set(b.nodeCounts[suffixLevel] - 1)
 	b.suffixes[suffixLevel] = append(b.suffixes[suffixLevel], key[level:])
 }
 
@@ -296,13 +289,14 @@ func (b *Builder) isSameKey(a, c []byte) bool {
 }
 
 // skipCommonPrefix skips common prefix, returns level that different char.
-func (b *Builder) skipCommonPrefix(key []byte) (level int) {
-	for level < len(key) && b.isCommonPrefix(key[level], level) {
-		setBit(b.lsHasChild[level], b.nodeCounts[level]-1)
-		level++
-	}
-	return level
-}
+// func (b *Builder) skipCommonPrefix(key []byte) (level int) {
+// 	for level < len(key) && b.isCommonPrefix(key[level], level) {
+// 		setBit(b.lsHasChild[level], b.nodeCounts[level]-1)
+//
+// 		level++
+// 	}
+// 	return level
+// }
 
 // isCommonPrefix returns whether char is common prefix.
 func (b *Builder) isCommonPrefix(c byte, level int) bool {
@@ -336,28 +330,28 @@ func (b *Builder) ensureLevel(level int) {
 func (b *Builder) addLevel() {
 	// cached
 	b.lsLabels = append(b.lsLabels, b.pickLabels())
-	b.lsHasChild = append(b.lsHasChild, b.pickUint64Slice())
-	b.lsLouds = append(b.lsLouds, b.pickUint64Slice())
-	b.hasSuffix = append(b.hasSuffix, b.pickUint64Slice())
+	b.lsHasChild = append(b.lsHasChild, bitset.New(64))
+	b.lsLouds = append(b.lsLouds, bitset.New(64))
+	b.hasSuffix = append(b.hasSuffix, bitset.New(64))
 
 	b.values = append(b.values, []uint32{})
 	b.suffixes = append(b.suffixes, [][]byte{})
 	b.isLastItemTerminator = append(b.isLastItemTerminator, false)
 	b.nodeCounts = append(b.nodeCounts, 0)
 
-	level := len(b.lsLabels) - 1
-	b.lsHasChild[level] = append(b.lsHasChild[level], 0)
-	b.lsLouds[level] = append(b.lsLouds[level], 0)
-	b.hasSuffix[level] = append(b.hasSuffix[level], 0)
+	// level := len(b.lsLabels) - 1
+	// b.lsHasChild[level] = append(b.lsHasChild[level], 0)
+	// b.lsLouds[level] = append(b.lsLouds[level], 0)
+	// b.hasSuffix[level] = append(b.hasSuffix[level], 0)
 }
 
 func (b *Builder) isStartOfNode(level, pos int) bool {
-	return readBit(b.lsLouds[level], pos)
+	return b.lsLouds[level].Test(uint(pos))
 }
 
 func (b *Builder) isTerminator(level, pos int) bool {
 	label := b.lsLabels[level][pos]
-	return label == terminator && !readBit(b.lsHasChild[level], pos)
+	return label == terminator && !b.lsHasChild[level].Test(uint(pos))
 }
 
 func (b *Builder) pickLabels() []byte {
