@@ -57,7 +57,7 @@ func NewBuilder() *Builder {
 }
 
 func (b *Builder) Write(w io.Writer) error {
-	height := b.height
+	height := len(b.lsLabels)
 	var (
 		bs [4]byte
 	)
@@ -274,7 +274,7 @@ func (b *Builder) moveToNextNodeSlot(level int) {
 
 // isLevelEmpty returns whether level is empty.
 func (b *Builder) isLevelEmpty(level int) bool {
-	return level >= b.height || len(b.lsLabels[level]) == 0
+	return level >= len(b.lsLabels) || len(b.lsLabels[level]) == 0
 }
 
 func (b *Builder) insertSuffix(key []byte, level int) {
@@ -320,13 +320,12 @@ func (b *Builder) numNodes(level int) int {
 
 func (b *Builder) ensureLevel(level int) {
 	// level should be at most equal to trie height
-	if level >= b.height {
+	if level >= len(b.lsLabels) {
 		b.addLevel()
 	}
 }
 
 func (b *Builder) addLevel() {
-	b.height++
 	// cached
 	b.lsLabels = append(b.lsLabels, b.pickLabels())
 	b.lsHasChild = append(b.lsHasChild, b.pickUint64Slice())
@@ -337,7 +336,7 @@ func (b *Builder) addLevel() {
 	b.suffixes = append(b.suffixes, [][]byte{})
 	b.isLastItemTerminator = append(b.isLastItemTerminator, false)
 
-	level := b.height - 1
+	level := len(b.lsLabels) - 1
 	b.lsHasChild[level] = append(b.lsHasChild[level], 0)
 	b.lsLouds[level] = append(b.lsLouds[level], 0)
 	b.hasSuffix[level] = append(b.hasSuffix[level], 0)

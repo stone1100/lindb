@@ -73,11 +73,12 @@ func BenchmarkTrie_Iterator(b *testing.B) {
 }
 
 func BenchmarkTrie_MarshalBinary(b *testing.B) {
+	b.StopTimer()
 	ips, ranks := newTestIPs(1 << 8)
 	buf := &bytes.Buffer{}
 	builder := NewBuilder()
 
-	b.ResetTimer()
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		builder.Build(ips, ranks)
 		_ = builder.Write(buf)
