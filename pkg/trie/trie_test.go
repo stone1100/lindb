@@ -286,7 +286,9 @@ func assertTestData(t *testing.T, path string) {
 	assert.Nil(t, err)
 	lines := strings.Split(string(data), "\n")
 	for i, line := range lines {
-		fmt.Println(line)
+		if len([]byte(line)) == 0 {
+			continue
+		}
 		keys = append(keys, []byte(line))
 		binary.LittleEndian.PutUint32(scratch[:], uint32(i))
 		values = append(values, append([]byte{}, scratch[:]...))
@@ -305,6 +307,7 @@ func assertTestData(t *testing.T, path string) {
 	}
 
 	data, err = tree.MarshalBinary()
+	fmt.Printf("size=%d\n", len(data))
 	assert.Nil(t, err)
 	tree2 := trie.NewTrie()
 	assert.NoError(t, tree2.UnmarshalBinary(data))

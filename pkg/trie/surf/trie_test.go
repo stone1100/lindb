@@ -132,6 +132,38 @@ func TestTrie_BuildSuffix(t *testing.T) {
 		it.Next()
 	}
 }
+func TestTrie_Words2(t *testing.T) {
+	var keys [][]byte
+	var values []uint32
+	keysString := []string{
+		"A",
+		"Aani",
+		"a",
+		"aa",
+	}
+	for idx, key := range keysString {
+		keys = append(keys, []byte(key))
+		values = append(values, uint32(idx))
+	}
+	kvPair{keys: keys, values: values}.Sort()
+	trie := NewTrie()
+	trie.Create(keys, values)
+	examples := []struct {
+		input string
+		ok    bool
+	}{
+		{"A", true},
+		{"a", true},
+		{"aa", true},
+		{"Aani", true},
+		{"ab", false},
+	}
+
+	for _, example := range examples {
+		_, ok := trie.Get([]byte(example.input))
+		assert.Equalf(t, example.ok, ok, example.input)
+	}
+}
 
 func TestTrie_Words(t *testing.T) {
 	var keys [][]byte
@@ -194,6 +226,9 @@ func assertTestData(t *testing.T, path string) {
 	assert.Nil(t, err)
 	lines := strings.Split(string(data), "\n")
 	for i, line := range lines {
+		if len([]byte(line)) == 0 {
+			continue
+		}
 		keys = append(keys, []byte(line))
 		values = append(values, uint32(i))
 	}
@@ -207,6 +242,10 @@ func assertTestData(t *testing.T, path string) {
 		panic("length is zero")
 	}
 	for idx := range keys {
+		if len(keys[idx]) == 0 {
+			fmt.Println(values[idx])
+			continue
+		}
 		value, ok := trie.Get(keys[idx])
 		assert.True(t, ok)
 		assert.Equal(t, values[idx], value)
@@ -216,16 +255,17 @@ func assertTestData(t *testing.T, path string) {
 	err = builder.Write(w)
 	assert.NoError(t, err)
 	data = w.Bytes()
+	fmt.Printf("size=%d\n", len(data))
 	trie2 := NewTrie()
 	assert.NoError(t, trie2.Unmarshal(data))
 
-	itr := trie2.Iterator()
-	itr.First()
+	it := trie2.Iterator()
+	it.First()
 	var idx = 0
-	for itr.IsValid() {
-		assert.Equal(t, values[idx], itr.Value())
-		assert.Equal(t, keys[idx], itr.Key())
-		itr.Next()
+	for it.IsValid() {
+		assert.Equal(t, values[idx], it.Value())
+		assert.Equal(t, keys[idx], it.Key())
+		it.Next()
 		idx++
 	}
 }
@@ -235,9 +275,9 @@ func TestTrie_TestData_Words(t *testing.T) {
 }
 
 func TestTrie_TestData_UUID(t *testing.T) {
-	assertTestData(t, "testdata/uuid.txt.gz")
+	assertTestData(t, "../testdata/uuid.txt.gz")
 }
 
 func TestTrie_TestData_Hsk_words(t *testing.T) {
-	assertTestData(t, "testdata/hsk_words.txt.gz")
+	assertTestData(t, "../testdata/hsk_words.txt.gz")
 }

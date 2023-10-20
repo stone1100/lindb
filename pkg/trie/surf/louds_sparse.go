@@ -18,7 +18,7 @@ type loudsSparse struct {
 }
 
 func (ls *loudsSparse) Init(builder *Builder) {
-	ls.height = builder.treeHeight()
+	ls.height = builder.height
 	ls.totalKeys = builder.totalKeys
 
 	// init louds-sparse labels

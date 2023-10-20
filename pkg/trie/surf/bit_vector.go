@@ -18,33 +18,36 @@ type BitVector struct {
 }
 
 func (bv *BitVector) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
-	bv.numBits = bv.totalNumBits(numNodesPerLevel)
+	bv.totalNumBits(numNodesPerLevel)
 	bv.bits = make([]uint64, bv.numWords())
 
 	bitShift := 0
 	wordID := 0
-	for level := range bitsPerLevel {
+	for level, bitsBlock := range bitsPerLevel {
 		n := numNodesPerLevel[level]
 		if n == 0 {
 			continue
 		}
-		numCompleteWords := numNodesPerLevel[level] / bitsSize
+		numCompleteWords := n / bitsSize
 		for word := 0; word < numCompleteWords; word++ {
-			bv.bits[wordID] |= bitsPerLevel[level][word] >> bitShift
+			bv.bits[wordID] |= bitsBlock[word] << bitShift
 			wordID++
 			if bitShift > 0 {
-				bv.bits[wordID] |= bitsPerLevel[level][word] << (bitsSize - bitShift)
+				bv.bits[wordID] |= bitsBlock[word] >> (bitsSize - bitShift)
 			}
 		}
 		remain := n % bitsSize
 		if remain > 0 {
-			lastWord := bitsPerLevel[level][numCompleteWords]
+			lastWord := bitsBlock[numCompleteWords]
 			bv.bits[wordID] |= lastWord << bitShift
-			if bitShift+remain < bitsSize {
-				bitShift += remain
+			if bitShift+remain <= bitsSize {
+				bitShift = (bitShift + remain) % bitsSize
+				if bitShift == 0 {
+					wordID++
+				}
 			} else {
 				wordID++
-				bv.bits[wordID] |= lastWord << (bitsSize - bitShift)
+				bv.bits[wordID] |= lastWord >> (bitsSize - bitShift)
 				bitShift = bitShift + remain - bitsSize
 			}
 		}
@@ -124,12 +127,10 @@ func (v *BitVector) numWords() int {
 	return v.numBits/bitsSize + 1
 }
 
-func (bv *BitVector) totalNumBits(numNodesPerLevel []int) int {
-	numBits := 0
+func (bv *BitVector) totalNumBits(numNodesPerLevel []int) {
 	for level := range numNodesPerLevel {
-		numBits += numNodesPerLevel[level]
+		bv.numBits += numNodesPerLevel[level]
 	}
-	return numBits
 }
 
 func (bv *BitVector) String() string {
@@ -238,7 +239,12 @@ func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][]uint64, numNodesP
 
 func (bvr *BitVectorRank) initLut() {
 	wordPerBlk := bvr.blockSize / bitsSize
-	nblks := bvr.numBits/bvr.blockSize + 1
+	nblks := 0
+	if bvr.numBits%bvr.blockSize == 0 {
+		nblks = bvr.numBits / bvr.blockSize
+	} else {
+		nblks = bvr.numBits/bvr.blockSize + 1
+	}
 	bvr.rankLut = make([]int, nblks)
 
 	var totalRank int

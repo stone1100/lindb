@@ -171,7 +171,7 @@ func (cpv *compressPathVector) unmarshal(buf []byte, pos int) (r int, err error)
 	cpv.offsets = bytesToU32Slice(buf[pos:end])
 	pos = end
 	// read data
-	cpv.data = buf[pos:]
+	cpv.data = buf[pos : pos+dataLen]
 	return pos + dataLen, nil
 }
 

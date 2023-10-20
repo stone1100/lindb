@@ -26,8 +26,7 @@ func (it *Iterator) IsValid() bool {
 }
 
 func (it *Iterator) Key() []byte {
-	key := it.loudsSparseIt.getKey()
-	return key
+	return it.loudsSparseIt.getKey()
 }
 
 func (it *Iterator) Value() uint32 {
