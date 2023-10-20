@@ -146,9 +146,9 @@ func (bv *BitVector) String() string {
 type BitVectorSelect struct {
 	BitVector
 
-	numOnes uint32
+	numOnes int
 	// LookUp Table(LUTSs) to store a sampling of precomputed results
-	selectLut []uint32
+	selectLut []int
 }
 
 func (bvs *BitVectorSelect) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
@@ -158,7 +158,7 @@ func (bvs *BitVectorSelect) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int
 }
 
 func (bvs *BitVectorSelect) initLut() {
-	lut := []uint32{0}
+	lut := []int{0}
 	sampledOnes := selectSampleInterval
 	onesUptoWord := 0
 	for i, w := range bvs.bits {
@@ -166,14 +166,14 @@ func (bvs *BitVectorSelect) initLut() {
 		for sampledOnes <= onesUptoWord+ones {
 			diff := sampledOnes - onesUptoWord
 			targetPos := i*bitsSize + int(select64(w, int64(diff)))
-			lut = append(lut, uint32(targetPos))
+			lut = append(lut, targetPos)
 			sampledOnes += selectSampleInterval
 		}
 		onesUptoWord += ones
 	}
 
-	bvs.numOnes = uint32(onesUptoWord)
-	bvs.selectLut = make([]uint32, len(lut))
+	bvs.numOnes = onesUptoWord
+	bvs.selectLut = make([]int, len(lut))
 	copy(bvs.selectLut, lut)
 }
 
@@ -188,7 +188,7 @@ func (bvs *BitVectorSelect) unmarshal(reader *stream.Reader) error {
 // Select returns the position of the rank-th 1 bit.
 // position is zero-based; rank is one-based.
 // E.g., for bitvector: 100101000, select(3) = 5
-func (bvs *BitVectorSelect) Select(rank uint32) uint32 {
+func (bvs *BitVectorSelect) Select(rank int) int {
 	lutIdx := rank / selectSampleInterval
 	rankLeft := rank % selectSampleInterval
 	if lutIdx == 0 {
@@ -211,15 +211,15 @@ func (bvs *BitVectorSelect) Select(rank uint32) uint32 {
 
 	// clear low level bits
 	w := bvs.bits[wordOff] >> bitsOff << bitsOff
-	ones := uint32(bits.OnesCount64(w))
+	ones := bits.OnesCount64(w)
 	for ones < rankLeft {
 		wordOff++
 		w = bvs.bits[wordOff]
 		rankLeft -= ones
-		ones = uint32(bits.OnesCount64(w))
+		ones = bits.OnesCount64(w)
 	}
 
-	return wordOff*bitsSize + uint32(select64(w, int64(rankLeft)))
+	return wordOff*bitsSize + int(select64(w, int64(rankLeft)))
 }
 
 type BitVectorRank struct {

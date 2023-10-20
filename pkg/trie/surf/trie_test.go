@@ -80,4 +80,12 @@ func TestTrie_BuildSuffix(t *testing.T) {
 		fmt.Printf("key=%s,value=%d\n", string(it.Key()), it.Value())
 		it.Next()
 	}
+
+	fmt.Println("seek")
+	it = trie.Iterator()
+	it.Seek([]byte("hello1"))
+	for it.IsValid() {
+		fmt.Printf("key=%s,value=%d\n", string(it.Key()), it.Value())
+		it.Next()
+	}
 }

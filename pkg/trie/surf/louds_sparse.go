@@ -15,15 +15,17 @@ type loudsSparse struct {
 	suffixes *SuffixVector
 	values   *ValueVector
 
-	height int
+	height    int
+	totalKeys int
 }
 
 func (ls *loudsSparse) Init(builder *Builder) {
 	ls.height = builder.treeHeight()
+	ls.totalKeys = builder.totalKeys
 
 	// init louds-sparse labels
 	ls.labels = NewLabelVector()
-	ls.labels.Init(builder.getLabels())
+	ls.labels.Init(builder.lsLabels)
 
 	numNodesPerLevel := make([]int, ls.height)
 	for level := range numNodesPerLevel {
@@ -31,11 +33,11 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	}
 	// init louds-sparse has-child
 	ls.hasChild = &BitVectorRank{}
-	ls.hasChild.Init(rankSparseBlockSize, builder.getHasChildBits(), numNodesPerLevel)
+	ls.hasChild.Init(rankSparseBlockSize, builder.lsHasChild, numNodesPerLevel)
 
 	// init louds-sparse louds
 	ls.louds = &BitVectorSelect{}
-	ls.louds.Init(builder.getLoudsBits(), numNodesPerLevel)
+	ls.louds.Init(builder.lsLouds, numNodesPerLevel)
 
 	// init suffix
 	ls.suffixes = &SuffixVector{}
@@ -58,7 +60,7 @@ func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
 		}
 		// if trie branch terminates
 		if !ls.hasChild.ReadBit(pos) {
-			if ok = ls.suffixes.CheckSuffix(key, level, pos); ok {
+			if ok = ls.suffixes.CheckSuffix(key, level+1, pos); ok {
 				value = ls.values.Get(ls.valuePos(pos))
 				ok = true
 			}
@@ -70,7 +72,7 @@ func (ls *loudsSparse) lookupKey(key []byte) (value uint32, ok bool) {
 		pos = ls.getFirstLabelPos(nodeNum)
 	}
 	if ls.labels.Read(pos) == terminator && !ls.hasChild.ReadBit(pos) {
-		if ok = ls.suffixes.CheckSuffix(key, level, pos); ok {
+		if ok = ls.suffixes.CheckSuffix(key, level+1, pos); ok {
 			value = ls.values.Get(ls.valuePos(pos))
 			ok = true
 		}
@@ -91,7 +93,7 @@ func (ls *loudsSparse) valuePos(pos int) int {
 // S-ChildNodePos(pos) = select1(S-LOUDS, rank1(S-HasChild, pos) + 1)
 // nodeNum = ls.getChildNodeNum(pos) => rank1(S-HasChild, pos)
 func (ls *loudsSparse) getFirstLabelPos(nodeNum int) int {
-	return int(ls.louds.Select(uint32(nodeNum + 1)))
+	return int(ls.louds.Select(nodeNum + 1))
 }
 
 func (ls *loudsSparse) nodeSize(pos int) int {
@@ -106,6 +108,11 @@ func (ls *loudsSparse) write(w io.Writer) error {
 	var (
 		bs [4]byte
 	)
+	// write total keys
+	binary.LittleEndian.PutUint32(bs[:], uint32(ls.totalKeys))
+	if _, err := w.Write(bs[:]); err != nil {
+		return err
+	}
 	// write height
 	binary.LittleEndian.PutUint32(bs[:], uint32(ls.height))
 	if _, err := w.Write(bs[:]); err != nil {
@@ -123,29 +130,51 @@ func (ls *loudsSparse) write(w io.Writer) error {
 	if err := ls.louds.write(w); err != nil {
 		return err
 	}
+	// write suffixes
+	if err := ls.suffixes.write(w); err != nil {
+		return err
+	}
+	// write values
+	if err := ls.values.write(w); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (ls *loudsSparse) unmarshal(reader *stream.Reader) (err error) {
+	ls.totalKeys = int(reader.ReadUint32())
 	ls.height = int(reader.ReadUint32())
 
+	// read labels
 	labels := &LabelVector{}
 	if err := labels.unmarshal(reader); err != nil {
 		return err
 	}
 	ls.labels = labels
-
+	// read has child
 	hasChild := &BitVectorRank{}
 	if err := hasChild.unmarshal(reader); err != nil {
 		return nil
 	}
 	ls.hasChild = hasChild
-
+	// read louds
 	louds := &BitVectorSelect{}
 	if err := louds.unmarshal(reader); err != nil {
 		return nil
 	}
 	ls.louds = louds
+	// read suffixes
+	suffixes := &SuffixVector{}
+	if err := suffixes.unmarshal(reader); err != nil {
+		return nil
+	}
+	ls.suffixes = suffixes
+	// read values
+	values := &ValueVector{}
+	if err := values.unmarshal(ls.totalKeys, reader); err != nil {
+		return nil
+	}
+	ls.values = values
 	return nil
 }
 

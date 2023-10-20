@@ -1,5 +1,7 @@
 package surf
 
+import "bytes"
+
 type Iterator struct {
 	loudsSparseIt *loudsSparseIterator
 }
@@ -40,8 +42,6 @@ type loudsSparseIterator struct {
 	trie *loudsSparse
 	// true means the iter currently points to a valid key
 	isValid bool
-	// passed in by the dense iterator, default 0
-	startNodeNum int
 	// start couting from start level; does NOT include suffix
 	level          int // level
 	key            []byte
@@ -54,7 +54,6 @@ func newLoudsSparseIterator(trie *loudsSparse) *loudsSparseIterator {
 	it := &loudsSparseIterator{
 		trie:           trie,
 		isValid:        false,
-		startNodeNum:   0,
 		level:          0,
 		isAtTerminator: false,
 	}
@@ -65,7 +64,6 @@ func newLoudsSparseIterator(trie *loudsSparse) *loudsSparseIterator {
 
 func (it *loudsSparseIterator) reset() {
 	it.isValid = false
-	it.startNodeNum = 0
 	it.level = 0
 	it.isAtTerminator = false
 
@@ -77,7 +75,7 @@ func (it *loudsSparseIterator) reset() {
 
 func (it *loudsSparseIterator) moveToLeftMostKey() {
 	if it.level == 0 {
-		pos := it.trie.getFirstLabelPos(int(it.startNodeNum))
+		pos := it.trie.getFirstLabelPos(0)
 		label := it.trie.labels.Read(pos)
 		it.append(label, pos)
 	}
@@ -94,7 +92,7 @@ func (it *loudsSparseIterator) moveToLeftMostKey() {
 
 	for level < it.trie.height {
 		// process child
-		nodeNum := it.trie.getChildNodeNum(int(pos))
+		nodeNum := it.trie.getChildNodeNum(pos)
 		pos = it.trie.getFirstLabelPos(nodeNum)
 		label := it.trie.labels.Read(int(pos))
 
@@ -117,6 +115,10 @@ func (it *loudsSparseIterator) next() {
 	if !it.isValid {
 		return
 	}
+	it.doNext()
+}
+
+func (it *loudsSparseIterator) doNext() {
 	pos, ok := it.nextPos()
 	if !ok {
 		return
@@ -150,7 +152,7 @@ func (it *loudsSparseIterator) nextPos() (int, bool) {
 func (it *loudsSparseIterator) seek(prefix []byte) bool {
 	it.reset()
 
-	nodeNum := it.startNodeNum
+	nodeNum := 0
 	var ok bool
 	pos := it.trie.getFirstLabelPos(nodeNum)
 
@@ -166,7 +168,8 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 
 		// if trie brach terminates
 		if !it.trie.hasChild.ReadBit(pos) {
-			return it.compareSuffixGreaterThan()
+			// check suffix
+			return it.compareSuffixGreaterThan(prefix, pos, level+1)
 		}
 
 		// move to child
@@ -176,6 +179,7 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 	if it.trie.labels.Read(pos) == terminator &&
 		!it.trie.hasChild.ReadBit(pos) &&
 		!it.trie.isEndOfNode(pos) {
+		// prefix is key
 		it.append(terminator, pos)
 		it.isAtTerminator = true
 		it.isValid = true
@@ -183,6 +187,7 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 	}
 
 	if len(prefix) <= level {
+		// try read more label
 		it.moveToLeftMostKey()
 		return false
 	}
@@ -191,8 +196,17 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 	return true
 }
 
-func (it *loudsSparseIterator) compareSuffixGreaterThan() bool {
-	//TODO: fix
+func (it *loudsSparseIterator) compareSuffixGreaterThan(prefix []byte, pos, level int) bool {
+	if level < len(prefix) {
+		// if prefix is remaining, need check suffix
+		suffix := it.trie.suffixes.GetSuffix(pos)
+		if !bytes.HasSuffix(suffix, prefix[level:]) {
+			// suffix not match, do next
+			it.doNext()
+			return false
+		}
+	}
+	it.isValid = true
 	return true
 }
 
@@ -240,6 +254,7 @@ func (it *loudsSparseIterator) getKey() []byte {
 	copy(it.fullKey[kLen:], suffix)
 	return it.fullKey
 }
+
 func (it *loudsSparseIterator) getValue() uint32 {
 	valPos := it.trie.valuePos(it.posInTrie[it.level-1])
 	return it.trie.values.Get(valPos)
@@ -253,7 +268,5 @@ func (it *loudsSparseIterator) append(label byte, pos int) {
 }
 
 func (it *loudsSparseIterator) appendByPos(pos int) {
-	it.key[it.level] = it.trie.labels.Read(pos)
-	it.posInTrie[it.level] = pos
-	it.level++
+	it.append(it.trie.labels.Read(pos), pos)
 }

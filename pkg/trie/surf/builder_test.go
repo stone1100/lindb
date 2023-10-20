@@ -30,7 +30,7 @@ func TestBuilder_BuildSuffix(t *testing.T) {
 	it := trie2.Iterator()
 	it.First()
 	for it.IsValid() {
-		fmt.Printf("key=%s\n", string(it.Key()))
+		fmt.Printf("key=%s,value=%d\n", string(it.Key()), it.Value())
 		it.Next()
 	}
 }
@@ -62,7 +62,7 @@ func TestBuilder_Write(t *testing.T) {
 	it := trie2.Iterator()
 	it.First()
 	for it.IsValid() {
-		fmt.Printf("key=%s\n", string(it.Key()))
+		fmt.Printf("key=%s,value=%d\n", string(it.Key()), it.Value())
 		it.Next()
 	}
 }

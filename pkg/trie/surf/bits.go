@@ -16,6 +16,53 @@ func init() {
 	}
 }
 
+func intSliceToBytes(u []int) []byte {
+	if len(u) == 0 {
+		return nil
+	}
+	var b []byte
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr.Len = len(u) * 4
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
+	return b
+}
+
+func bytesToIntSlice(b []byte) []int {
+	if len(b) == 0 {
+		return nil
+	}
+	var u32s []int
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
+	hdr.Len = len(b) / 4
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
+	return u32s
+}
+
+func u32SliceToBytes(u []uint32) []byte {
+	if len(u) == 0 {
+		return nil
+	}
+	var b []byte
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr.Len = len(u) * 4
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
+	return b
+}
+
+func bytesToU32Slice(b []byte) []uint32 {
+	if len(b) == 0 {
+		return nil
+	}
+	var u32s []uint32
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u32s))
+	hdr.Len = len(b) / 4
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
+	return u32s
+}
 func u64SliceToBytes(u []uint64) []byte {
 	if len(u) == 0 {
 		return nil

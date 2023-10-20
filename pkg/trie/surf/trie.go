@@ -1,7 +1,6 @@
 package surf
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/lindb/lindb/pkg/stream"
@@ -60,5 +59,5 @@ func (trie *Trie) Unmarshal(buf []byte) (err error) {
 }
 
 func (trie *Trie) String() string {
-	return fmt.Sprintf("%s\n\n", trie.loudsSparse.String())
+	return trie.loudsSparse.String()
 }

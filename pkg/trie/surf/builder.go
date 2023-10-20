@@ -10,9 +10,7 @@ const (
 	bitsSize = 64
 	// terminator($) indicates the situation where a prefix strings
 	// leading to a node is also a valid key
-	terminator       = 0xff
-	fanout           = 256
-	sparseDenseRatio = 65
+	terminator = 0xff
 )
 
 var (
@@ -44,6 +42,8 @@ type Builder struct {
 	suffixes  [][][]byte
 
 	values [][]uint32
+
+	totalKeys int
 }
 
 func NewBuilder() *Builder {
@@ -55,6 +55,11 @@ func (b *Builder) Write(w io.Writer) error {
 	var (
 		bs [4]byte
 	)
+	// write total keys
+	binary.LittleEndian.PutUint32(bs[:], uint32(b.totalKeys))
+	if _, err := w.Write(bs[:]); err != nil {
+		return err
+	}
 	// write height
 	binary.LittleEndian.PutUint32(bs[:], uint32(height))
 	if _, err := w.Write(bs[:]); err != nil {
@@ -87,11 +92,23 @@ func (b *Builder) Write(w io.Writer) error {
 	if err := louds.write(w); err != nil {
 		return err
 	}
-
+	// write suffixes
+	suffixes := &SuffixVector{}
+	suffixes.Init(b.hasSuffix, numNodesPerLevel, b.suffixes)
+	if err := suffixes.write(w); err != nil {
+		return err
+	}
+	// write suffixes
+	values := &ValueVector{}
+	values.Init(b.values)
+	if err := values.write(w); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (b *Builder) Build(keys [][]byte, values []uint32) {
+	b.totalKeys = len(keys)
 	b.buildSparse(keys, values)
 }
 
@@ -147,7 +164,7 @@ func (b *Builder) insertKeyBytesToTrieUntilUnique(key []byte, nextKey []byte, st
 		isTerm = true
 		b.insertKeyByte(terminator, level, isStartOfNode, isTerm)
 	}
-	level++ // goto next
+	level++ // goto next, for storing value
 
 	return level
 }
@@ -191,9 +208,9 @@ func (b *Builder) isLevelEmpty(level int) bool {
 }
 
 func (b *Builder) insertSuffix(key []byte, level int) {
-	// set parent node has suffix
-	setBit(b.hasSuffix[level-1], b.numNodes(level-1)-1)
-	b.suffixes[level] = append(b.suffixes[level], key[level:])
+	suffixLevel := level - 1 // need -1, because after insert label, level will move next
+	setBit(b.hasSuffix[suffixLevel], b.numNodes(suffixLevel)-1)
+	b.suffixes[suffixLevel] = append(b.suffixes[suffixLevel], key[level:])
 }
 
 func (b *Builder) insertValue(value uint32, level int) {
@@ -263,23 +280,6 @@ func (b *Builder) addLevel() {
 	b.lsLouds[level] = append(b.lsLouds[level], 0)
 	// b.hasPrefix[level] = append(b.hasPrefix[level], 0)
 	b.hasSuffix[level] = append(b.hasSuffix[level], 0)
-}
-
-func (b *Builder) getLabels() [][]byte {
-	return b.lsLabels
-}
-
-func (b *Builder) getLoudsBits() [][]uint64 {
-	return b.lsLouds
-}
-
-func (b *Builder) getHasChildBits() [][]uint64 {
-	return b.lsHasChild
-}
-
-func (b *Builder) getSuffixLen() int {
-	//FIXME: impl
-	return 0
 }
 
 func (b *Builder) isStartOfNode(level, pos int) bool {
