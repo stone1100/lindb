@@ -94,9 +94,12 @@ func selectInByte(i, j int) uint8 {
 }
 
 func readBit(bs []uint64, pos int) bool {
-	wordOff := pos / bitsSize
-	bitsOff := pos % bitsSize
-	return bs[wordOff]&(uint64(1)<<bitsOff) != 0
+	// wordOff := pos / bitsSize
+	// bitsOff := pos % bitsSize
+	// return bs[wordOff]&(uint64(1)<<bitsOff) != 0
+	// wordOff := pos / bitsSize
+	// bitsOff := pos % bitsSize
+	return bs[pos>>6]&(one<<wordsIndex(uint(pos))) != 0
 }
 
 func select64Broadword(x uint64, nth int64) int64 {

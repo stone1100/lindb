@@ -108,8 +108,8 @@ type compressPathVector struct {
 	data          []byte
 }
 
-func (cpv *compressPathVector) Init(hasPathBits [][][]uint64, idx int, numNodesPerLevel []int, data [][][]byte) {
-	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, idx, numNodesPerLevel)
+func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte) {
+	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel)
 	cpv.initData(numNodesPerLevel, data)
 }
 
