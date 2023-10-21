@@ -5,8 +5,6 @@ import (
 	"io"
 	"math/bits"
 	"strings"
-
-	"github.com/bits-and-blooms/bitset"
 )
 
 const (
@@ -19,29 +17,28 @@ type BitVector struct {
 	bits    []uint64
 }
 
-func (bv *BitVector) Init(bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
+func (bv *BitVector) Init(bitsPerLevel [][][]uint64, idx int, numNodesPerLevel []int) {
 	bv.totalNumBits(numNodesPerLevel)
 	bv.bits = make([]uint64, bv.numWords())
 
 	bitShift := 0
 	wordID := 0
-	for level := range bitsPerLevel {
-		bitsBlock := bitsPerLevel[level].Bytes()
+	for level, bitsBlock := range bitsPerLevel {
 		n := numNodesPerLevel[level]
 		if n == 0 {
 			continue
 		}
 		numCompleteWords := n / bitsSize
 		for word := 0; word < numCompleteWords; word++ {
-			bv.bits[wordID] |= bitsBlock[word] << bitShift
+			bv.bits[wordID] |= bitsBlock[word][idx] << bitShift
 			wordID++
 			if bitShift > 0 {
-				bv.bits[wordID] |= bitsBlock[word] >> (bitsSize - bitShift)
+				bv.bits[wordID] |= bitsBlock[word][idx] >> (bitsSize - bitShift)
 			}
 		}
 		remain := n % bitsSize
 		if remain > 0 {
-			lastWord := bitsBlock[numCompleteWords]
+			lastWord := bitsBlock[numCompleteWords][idx]
 			bv.bits[wordID] |= lastWord << bitShift
 			if bitShift+remain <= bitsSize {
 				bitShift = (bitShift + remain) % bitsSize
@@ -156,8 +153,8 @@ type BitVectorSelect struct {
 	selectLut []int
 }
 
-func (bvs *BitVectorSelect) Init(bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
-	bvs.BitVector.Init(bitsPerLevel, numNodesPerLevel)
+func (bvs *BitVectorSelect) Init(bitsPerLevel [][][]uint64, idx int, numNodesPerLevel []int) {
+	bvs.BitVector.Init(bitsPerLevel, idx, numNodesPerLevel)
 
 	bvs.initLut()
 }
@@ -234,8 +231,8 @@ type BitVectorRank struct {
 	rankLut   []int
 }
 
-func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel []*bitset.BitSet, numNodesPerLevel []int) {
-	bvr.BitVector.Init(bitsPerLevel, numNodesPerLevel)
+func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][][]uint64, idx int, numNodesPerLevel []int) {
+	bvr.BitVector.Init(bitsPerLevel, idx, numNodesPerLevel)
 	bvr.blockSize = blockSize
 	bvr.initLut()
 }

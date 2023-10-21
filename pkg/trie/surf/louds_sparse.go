@@ -31,15 +31,15 @@ func (ls *loudsSparse) Init(builder *Builder) {
 	}
 	// init louds-sparse has-child
 	ls.hasChild = &BitVectorRank{}
-	ls.hasChild.Init(rankSparseBlockSize, builder.lsHasChild, numNodesPerLevel)
+	ls.hasChild.Init(rankSparseBlockSize, builder.bitmaps, HasChildIdx, numNodesPerLevel)
 
 	// init louds-sparse louds
 	ls.louds = &BitVectorSelect{}
-	ls.louds.Init(builder.lsLouds, numNodesPerLevel)
+	ls.louds.Init(builder.bitmaps, LoudsIdx, numNodesPerLevel)
 
 	// init suffix
 	ls.suffixes = &SuffixVector{}
-	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes)
+	ls.suffixes.Init(builder.bitmaps, HasSuffixIdx, numNodesPerLevel, builder.suffixes)
 
 	// init values
 	ls.values = &ValueVector{}

@@ -6,8 +6,6 @@ import (
 	"io"
 	"sort"
 	"strings"
-
-	"github.com/bits-and-blooms/bitset"
 )
 
 type LabelVector struct {
@@ -110,8 +108,8 @@ type compressPathVector struct {
 	data          []byte
 }
 
-func (cpv *compressPathVector) Init(hasPathBits []*bitset.BitSet, numNodesPerLevel []int, data [][][]byte) {
-	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel)
+func (cpv *compressPathVector) Init(hasPathBits [][][]uint64, idx int, numNodesPerLevel []int, data [][][]byte) {
+	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, idx, numNodesPerLevel)
 	cpv.initData(numNodesPerLevel, data)
 }
 
