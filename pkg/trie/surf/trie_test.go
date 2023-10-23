@@ -247,6 +247,10 @@ func assertTestData(t *testing.T, path string) {
 			continue
 		}
 		value, ok := trie.Get(keys[idx])
+		if !ok {
+			fmt.Println(string(keys[idx]))
+			panic("err")
+		}
 		assert.True(t, ok)
 		assert.Equal(t, values[idx], value)
 	}

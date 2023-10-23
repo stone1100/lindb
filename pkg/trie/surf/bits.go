@@ -17,6 +17,30 @@ func init() {
 	}
 }
 
+func u16SliceToBytes(u []uint16) []byte {
+	if len(u) == 0 {
+		return nil
+	}
+	var b []byte
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	hdr.Len = len(u) * 2
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&u[0]))
+	return b
+}
+
+func bytesToU16Slice(b []byte) []uint16 {
+	if len(b) == 0 {
+		return nil
+	}
+	var u16s []uint16
+	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&u16s))
+	hdr.Len = len(b) / 2
+	hdr.Cap = hdr.Len
+	hdr.Data = uintptr(unsafe.Pointer(&b[0]))
+	return u16s
+}
+
 func u32SliceToBytes(u []uint32) []byte {
 	if len(u) == 0 {
 		return nil

@@ -18,7 +18,6 @@
 package trie_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/lindb/lindb/pkg/trie"
@@ -29,15 +28,15 @@ import (
 func BenchmarkTrie_MarshalBinary(b *testing.B) {
 	b.StopTimer()
 	ips, ranks := newTestIPs(1 << 8)
-	builder := trie.NewBuilder()
 
 	b.StartTimer()
-	var buf = &bytes.Buffer{}
+	// var buf = &bytes.Buffer{}
 	for i := 0; i < b.N; i++ {
-		tree := builder.Build(ips, ranks, 3)
-		_ = tree.Write(buf)
-		buf.Reset()
-		builder.Reset()
+		builder := trie.NewBuilder()
+		_ = builder.Build(ips, ranks, 3)
+		// _ = tree.Write(buf)
+		// buf.Reset()
+		// builder.Reset()
 	}
 }
 

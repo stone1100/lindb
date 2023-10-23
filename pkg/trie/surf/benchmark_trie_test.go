@@ -2,6 +2,7 @@ package surf
 
 import (
 	"bytes"
+	"math"
 	"testing"
 )
 
@@ -74,18 +75,26 @@ func BenchmarkTrie_Iterator(b *testing.B) {
 
 var (
 	ips, ranks = newTestIPs(1 << 8)
+	maxLen     = 0
 )
+
+func init() {
+	for _, k := range ips {
+		maxLen = int(math.Max(float64(maxLen), float64(len(k))))
+	}
+}
 
 func BenchmarkTrie_MarshalBinary(b *testing.B) {
 	b.StopTimer()
-	// buf := &bytes.Buffer{}
 	builder := NewBuilder()
+	buf := &bytes.Buffer{}
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
+		builder.SetLevel(maxLen + 1)
 		builder.Build(ips, ranks)
-		// _ = builder.Write(buf)
-		// buf.Reset()
+		_ = builder.Write(buf)
+		buf.Reset()
 		builder.Reset()
 	}
 }

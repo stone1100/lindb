@@ -23,11 +23,11 @@ func (ls *loudsSparse) Init(builder *Builder) {
 
 	// init louds-sparse labels
 	ls.labels = NewLabelVector()
-	ls.labels.Init(builder.lsLabels)
+	ls.labels.Init(builder.lsLabels, builder.nodeItems)
 
 	numNodesPerLevel := make([]int, ls.height)
 	for level := range numNodesPerLevel {
-		numNodesPerLevel[level] = len(builder.lsLabels[level])
+		numNodesPerLevel[level] = builder.nodeItems[level]
 	}
 	// init louds-sparse has-child
 	ls.hasChild = &BitVectorRank{}

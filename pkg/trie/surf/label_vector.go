@@ -16,21 +16,21 @@ func NewLabelVector() *LabelVector {
 	return &LabelVector{}
 }
 
-func (lv *LabelVector) Init(labels [][]byte) {
-	numBytes := labelsSize(labels)
+func (lv *LabelVector) Init(labels [][]byte, nodeCounts []int) {
+	numBytes := labelsSize(nodeCounts)
 	lv.labels = make([]byte, numBytes)
 
 	pos := 0
 	for l := range labels {
-		copy(lv.labels[pos:], labels[l])
-		pos += len(labels[l])
+		copy(lv.labels[pos:], labels[l][:nodeCounts[l]])
+		pos += nodeCounts[l]
 	}
 }
 
-func labelsSize(labels [][]byte) int {
+func labelsSize(labels []int) int {
 	numBytes := 0
 	for _, l := range labels {
-		numBytes += len(l)
+		numBytes += l
 	}
 	return numBytes
 }
