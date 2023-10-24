@@ -18,32 +18,28 @@ type loudsSparse struct {
 }
 
 func (ls *loudsSparse) Init(builder *Builder) {
-	ls.height = len(builder.lsLabels)
+	ls.height = builder.height
 	ls.totalKeys = builder.totalKeys
 
 	// init louds-sparse labels
 	ls.labels = NewLabelVector()
-	ls.labels.Init(builder.lsLabels, builder.nodeItems)
+	ls.labels.Init(builder.levels)
 
-	numNodesPerLevel := make([]int, ls.height)
-	for level := range numNodesPerLevel {
-		numNodesPerLevel[level] = builder.nodeItems[level]
-	}
 	// init louds-sparse has-child
 	ls.hasChild = &BitVectorRank{}
-	ls.hasChild.Init(rankSparseBlockSize, builder.lsHasChild, numNodesPerLevel)
+	ls.hasChild.Init(rankSparseBlockSize, builder.levels, HasChild)
 
 	// init louds-sparse louds
 	ls.louds = &BitVectorSelect{}
-	ls.louds.Init(builder.lsLouds, numNodesPerLevel)
+	ls.louds.Init(builder.levels, Louds)
 
 	// init suffix
 	ls.suffixes = &SuffixVector{}
-	ls.suffixes.Init(builder.hasSuffix, numNodesPerLevel, builder.suffixes)
+	ls.suffixes.Init(builder.levels, HasSuffix)
 
 	// init values
 	ls.values = &ValueVector{}
-	ls.values.Init(builder.values)
+	ls.values.Init(builder.levels)
 }
 
 func (ls *loudsSparse) lookupKey(key []byte) (value uint32, result bool) {

@@ -16,21 +16,22 @@ func NewLabelVector() *LabelVector {
 	return &LabelVector{}
 }
 
-func (lv *LabelVector) Init(labels [][]byte, nodeCounts []int) {
-	numBytes := labelsSize(nodeCounts)
+func (lv *LabelVector) Init(levels []*Level) {
+	numBytes := labelsSize(levels)
 	lv.labels = make([]byte, numBytes)
 
 	pos := 0
-	for l := range labels {
-		copy(lv.labels[pos:], labels[l][:nodeCounts[l]])
-		pos += nodeCounts[l]
+	for l := range levels {
+		levelObj := levels[l]
+		copy(lv.labels[pos:], levelObj.lsLabels[:levelObj.item])
+		pos += levelObj.item
 	}
 }
 
-func labelsSize(labels []int) int {
+func labelsSize(labels []*Level) int {
 	numBytes := 0
 	for _, l := range labels {
-		numBytes += l
+		numBytes += l.item
 	}
 	return numBytes
 }
@@ -108,15 +109,15 @@ type compressPathVector struct {
 	data          []byte
 }
 
-func (cpv *compressPathVector) Init(hasPathBits [][]uint64, numNodesPerLevel []int, data [][][]byte) {
-	cpv.hasPathVector.Init(rankSparseBlockSize, hasPathBits, numNodesPerLevel)
-	cpv.initData(numNodesPerLevel, data)
+func (cpv *compressPathVector) Init(levels []*Level, bitmapType BitmapType) {
+	cpv.hasPathVector.Init(rankSparseBlockSize, levels, bitmapType)
+	cpv.initData(levels)
 }
 
-func (cpv *compressPathVector) initData(numNodesPerLevel []int, data [][][]byte) {
+func (cpv *compressPathVector) initData(levels []*Level) {
 	offset := 0
-	for level := range data {
-		levelData := data[level]
+	for level := range levels {
+		levelData := levels[level].suffixes
 		for idx := range levelData {
 			d := levelData[idx]
 			cpv.offsets = append(cpv.offsets, uint32(offset))
@@ -195,16 +196,16 @@ type ValueVector struct {
 	values []uint32
 }
 
-func (v *ValueVector) Init(valuesPerLevel [][]uint32) {
+func (v *ValueVector) Init(levels []*Level) {
 	size := 0
-	for _, values := range valuesPerLevel {
-		size += len(values)
+	for _, level := range levels {
+		size += level.item
 	}
 	v.values = make([]uint32, size)
 
 	pos := 0
-	for level := range valuesPerLevel {
-		values := valuesPerLevel[level]
+	for level := range levels {
+		values := levels[level].values
 		for _, val := range values {
 			v.values[pos] = val
 			pos++

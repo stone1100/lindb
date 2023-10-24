@@ -91,7 +91,6 @@ func BenchmarkTrie_MarshalBinary(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		builder.SetLevel(maxLen + 1)
 		builder.Build(ips, ranks)
 		_ = builder.Write(buf)
 		buf.Reset()

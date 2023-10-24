@@ -17,17 +17,19 @@ type BitVector struct {
 	bits    []uint64
 }
 
-func (bv *BitVector) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
-	bv.totalNumBits(numNodesPerLevel)
+func (bv *BitVector) Init(levels []*Level, bitmapType BitmapType) {
+	bv.totalNumBits(levels)
 	bv.bits = make([]uint64, bv.numWords())
 
 	bitShift := 0
 	wordID := 0
-	for level, bitsBlock := range bitsPerLevel {
-		n := numNodesPerLevel[level]
+	for level := range levels {
+		levelObj := levels[level]
+		n := levelObj.item
 		if n == 0 {
 			continue
 		}
+		bitsBlock := levelObj.GetBitmap(bitmapType)
 		numCompleteWords := n / bitsSize
 		for word := 0; word < numCompleteWords; word++ {
 			bv.bits[wordID] |= bitsBlock[word] << bitShift
@@ -127,9 +129,9 @@ func (v *BitVector) numWords() int {
 	return v.numBits/bitsSize + 1
 }
 
-func (bv *BitVector) totalNumBits(numNodesPerLevel []int) {
-	for level := range numNodesPerLevel {
-		bv.numBits += numNodesPerLevel[level]
+func (bv *BitVector) totalNumBits(levels []*Level) {
+	for level := range levels {
+		bv.numBits += levels[level].item
 	}
 }
 
@@ -153,8 +155,8 @@ type BitVectorSelect struct {
 	selectLut []int
 }
 
-func (bvs *BitVectorSelect) Init(bitsPerLevel [][]uint64, numNodesPerLevel []int) {
-	bvs.BitVector.Init(bitsPerLevel, numNodesPerLevel)
+func (bvs *BitVectorSelect) Init(levels []*Level, bitmapType BitmapType) {
+	bvs.BitVector.Init(levels, bitmapType)
 
 	bvs.initLut()
 }
@@ -231,8 +233,8 @@ type BitVectorRank struct {
 	rankLut   []int
 }
 
-func (bvr *BitVectorRank) Init(blockSize int, bitsPerLevel [][]uint64, numNodesPerLevel []int) {
-	bvr.BitVector.Init(bitsPerLevel, numNodesPerLevel)
+func (bvr *BitVectorRank) Init(blockSize int, levels []*Level, bitmapType BitmapType) {
+	bvr.BitVector.Init(levels, bitmapType)
 	bvr.blockSize = blockSize
 	bvr.initLut()
 }
