@@ -2,6 +2,7 @@ package surf
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/bits"
 	"strings"
@@ -20,7 +21,6 @@ type BitVector struct {
 func (bv *BitVector) Init(levels []*Level, bitmapType BitmapType) {
 	bv.totalNumBits(levels)
 	bv.bits = make([]uint64, bv.numWords())
-
 	bitShift := 0
 	wordID := 0
 	for level := range levels {
@@ -150,9 +150,14 @@ func (bv *BitVector) String() string {
 type BitVectorSelect struct {
 	BitVector
 
-	numOnes int
+	numOnes uint32
 	// LookUp Table(LUTSs) to store a sampling of precomputed results
-	selectLut []int
+	selectLut []uint32
+
+	previousLutIdx  int
+	previousWordOff uint32
+	previousBuf     []int
+	previous        int
 }
 
 func (bvs *BitVectorSelect) Init(levels []*Level, bitmapType BitmapType) {
@@ -162,31 +167,85 @@ func (bvs *BitVectorSelect) Init(levels []*Level, bitmapType BitmapType) {
 }
 
 func (bvs *BitVectorSelect) initLut() {
-	lut := []int{0}
+	lut := []uint32{0}
 	sampledOnes := selectSampleInterval
 	onesUptoWord := 0
 	for i, w := range bvs.bits {
 		ones := bits.OnesCount64(w)
 		for sampledOnes <= onesUptoWord+ones {
 			diff := sampledOnes - onesUptoWord
-			targetPos := i*bitsSize + int(select64(w, int64(diff)))
+			targetPos := uint32(i*bitsSize) + uint32(select64(w, int64(diff)))
 			lut = append(lut, targetPos)
 			sampledOnes += selectSampleInterval
 		}
 		onesUptoWord += ones
 	}
 
-	bvs.numOnes = onesUptoWord
-	bvs.selectLut = make([]int, len(lut))
+	bvs.numOnes = uint32(onesUptoWord)
+	bvs.selectLut = make([]uint32, len(lut))
 	copy(bvs.selectLut, lut)
+}
+
+func (bvs *BitVectorSelect) writeLut(write io.Writer) error {
+	var buf [4]byte
+	sampledOnes := selectSampleInterval
+	onesUptoWord := 0
+	for i, w := range bvs.bits {
+		ones := bits.OnesCount64(w)
+		for sampledOnes <= onesUptoWord+ones {
+			diff := sampledOnes - onesUptoWord
+			targetPos := uint32(i*bitsSize) + uint32(select64(w, int64(diff)))
+			binary.LittleEndian.PutUint32(buf[:], targetPos)
+			if _, err := write.Write(buf[:]); err != nil {
+				return err
+			}
+			sampledOnes += selectSampleInterval
+		}
+		onesUptoWord += ones
+	}
+
+	return nil
+}
+
+func (bvs *BitVectorSelect) write(w io.Writer) error {
+	if err := bvs.BitVector.write(w); err != nil {
+		return err
+	}
+	// if err := bvs.writeLut(w); err != nil {
+	// 	return err
+	// }
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], bvs.numOnes)
+	_, err := w.Write(buf[:])
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(u32SliceToBytes(bvs.selectLut))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (bvs *BitVectorSelect) lutSize() uint32 {
+	return (bvs.numOnes/selectSampleInterval + 1) * 4
 }
 
 func (bvs *BitVectorSelect) unmarshal(buf []byte, pos int) (r int, err error) {
 	if r, err = bvs.BitVector.unmarshal(buf, pos); err != nil {
 		return 0, err
 	}
-	bvs.initLut()
-	return r, nil
+	bvs.numOnes = UnmarshalUint32(buf, r)
+	r += 4
+	// read lut
+	lutSize := int(bvs.lutSize())
+	if len(buf) < lutSize {
+		return 0, fmt.Errorf("cannot read lut: %d from selectVector:%d", lutSize, len(buf))
+	}
+	bvs.selectLut = bytesToU32Slice(buf[r : r+lutSize])
+
+	return r + lutSize, nil
 }
 
 // Select returns the position of the rank-th 1 bit.
@@ -201,7 +260,7 @@ func (bvs *BitVectorSelect) Select(rank int) int {
 
 	pos := bvs.selectLut[lutIdx]
 	if rankLeft == 0 {
-		return pos
+		return int(pos)
 	}
 
 	wordOff := pos / bitsSize
@@ -213,30 +272,98 @@ func (bvs *BitVectorSelect) Select(rank int) int {
 		bitsOff++
 	}
 
+	if bvs.previous > 0 && lutIdx == bvs.previousLutIdx {
+		// idx := 0
+
+		// ones := bits.OnesCount64(w)
+		// for ones < rankLeft && idx < len(bvs.previousBuf) {
+		// 	rankLeft -= ones
+		// 	idx++
+		// 	wordOff++
+		// 	w = bvs.bits[wordOff]
+		// 	ones = bvs.previousBuf[idx]
+		// }
+		// var w uint64
+		// if wordOff == bvs.previousWordOff {
+		// } else {
+		// 	w = bvs.bits[wordOff]
+		// }
+		var w uint64
+		idx := 0
+		ones := bvs.previousBuf[idx]
+		// bits.OnesCount64(w)
+		// idx++
+		for ones < rankLeft {
+			rankLeft -= ones
+			idx++
+			wordOff++
+			if idx < bvs.previous {
+				ones = bvs.previousBuf[idx]
+			} else {
+				w = bvs.bits[wordOff]
+				ones = bits.OnesCount64(w)
+			}
+		}
+		if idx > 0 {
+			w = bvs.bits[wordOff]
+		} else {
+			w = bvs.bits[wordOff] >> bitsOff << bitsOff
+		}
+		// fmt.Println(bvs.previousBuf)
+		// fmt.Printf("aw=%d,wo=%d,pwo=%d,l=%d,idx=%d\n", w, wordOff, bvs.previousWordOff, rankLeft, lutIdx)
+
+		return int(wordOff*bitsSize) + int(select64(w, int64(rankLeft)))
+	}
+
+	flag := false
+	if lutIdx != bvs.previousLutIdx || bvs.previous == 0 {
+		bvs.previous = 0
+		bvs.previousBuf = bvs.previousBuf[:0]
+		bvs.previousWordOff = wordOff
+		flag = true
+	}
+
 	// clear low level bits
 	w := bvs.bits[wordOff] >> bitsOff << bitsOff
 	ones := bits.OnesCount64(w)
-	for ones < rankLeft {
-		wordOff++
-		w = bvs.bits[wordOff]
-		rankLeft -= ones
-		ones = bits.OnesCount64(w)
+	if flag {
+		bvs.previousBuf = append(bvs.previousBuf, ones)
 	}
 
-	return wordOff*bitsSize + int(select64(w, int64(rankLeft)))
+	for ones < rankLeft {
+		rankLeft -= ones
+		wordOff++
+		w = bvs.bits[wordOff]
+		ones = bits.OnesCount64(w)
+		if flag {
+			bvs.previousBuf = append(bvs.previousBuf, ones)
+		}
+	}
+	bvs.previousLutIdx = lutIdx
+	bvs.previous = len(bvs.previousBuf)
+
+	// fmt.Println(bvs.previousBuf)
+	// fmt.Printf("w=%d,wo=%d,pwo=%d,l=%d,idx=%d\n", w, wordOff, bvs.previousWordOff, rankLeft, lutIdx)
+	return int(wordOff*bitsSize) + int(select64(w, int64(rankLeft)))
 }
 
 type BitVectorRank struct {
 	BitVector
 
 	blockSize int
-	rankLut   []int
+	rankLut   []uint32
 }
 
 func (bvr *BitVectorRank) Init(blockSize int, levels []*Level, bitmapType BitmapType) {
 	bvr.BitVector.Init(levels, bitmapType)
 	bvr.blockSize = blockSize
 	bvr.initLut()
+}
+
+func (bvr *BitVectorRank) Init2(blockSize int, levels []*Level, bitmapType BitmapType) {
+	bvr.BitVector.Init(levels, bitmapType)
+	bvr.blockSize = blockSize
+	// bvr.initLut()
 }
 
 func (bvr *BitVectorRank) initLut() {
@@ -247,30 +374,249 @@ func (bvr *BitVectorRank) initLut() {
 	} else {
 		nblks = bvr.numBits/bvr.blockSize + 1
 	}
-	bvr.rankLut = make([]int, nblks)
+	bvr.rankLut = make([]uint32, nblks)
 
-	var totalRank int
+	var totalRank uint32
 	for i := 0; i < nblks-1; i++ {
 		bvr.rankLut[i] = totalRank
-		totalRank += popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize)
+		totalRank += uint32(popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize))
 	}
 	bvr.rankLut[nblks-1] = totalRank
 }
 
+func (bvr *BitVectorRank) writeLUT(w io.Writer) error {
+	wordPerBlk := bvr.blockSize / bitsSize
+	nblks := 0
+	if bvr.numBits%bvr.blockSize == 0 {
+		nblks = bvr.numBits / bvr.blockSize
+	} else {
+		nblks = bvr.numBits/bvr.blockSize + 1
+	}
+	// bvr.rankLut = make([]uint32, nblks)
+	var buf [4]byte
+
+	var totalRank uint32
+	for i := 0; i < nblks-1; i++ {
+		binary.LittleEndian.PutUint32(buf[:], uint32(totalRank))
+		if _, err := w.Write(buf[:]); err != nil {
+			return err
+		}
+		// bvr.rankLut[i] = totalRank
+		totalRank += uint32(popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize))
+	}
+	// bvr.rankLut[nblks-1] = totalRank
+	binary.LittleEndian.PutUint32(buf[:], uint32(totalRank))
+	if _, err := w.Write(buf[:]); err != nil {
+		return err
+	}
+	return nil
+}
+
 // one count [0 pos]
 func (bvr *BitVectorRank) Rank(pos int) int {
-	wordPreBlk := rankSparseBlockSize / bitsSize
-	blockOff := pos / rankSparseBlockSize
-	bitsOff := pos % rankSparseBlockSize
+	wordPreBlk := bvr.blockSize / bitsSize
+	blockOff := pos / bvr.blockSize
+	bitsOff := pos % bvr.blockSize
 
-	return bvr.rankLut[blockOff] + popcountBlock(bvr.bits, blockOff*wordPreBlk, bitsOff+1)
+	return int(bvr.rankLut[blockOff]) + popcountBlock(bvr.bits, blockOff*wordPreBlk, bitsOff+1)
+}
+
+func (bvr *BitVectorRank) Select(rank int) int {
+	wordPreBlk := bvr.blockSize / bitsSize
+	blockOff := rank / bvr.blockSize
+	// bitsOff := pos % bvr.blockSize
+
+	rankLeft := uint32(rank) - bvr.rankLut[blockOff]
+	wordOff := blockOff * wordPreBlk
+	// ones := uint32(0)
+	w := bvr.bits[wordOff]
+	ones := uint32(bits.OnesCount64(w))
+	for ones < rankLeft {
+		rankLeft -= ones
+		wordOff++
+		// ones = bvr.rankLut[wordOff]
+		w = bvr.bits[wordOff]
+		ones = uint32(bits.OnesCount64(w))
+	}
+
+	return int(bvr.rankLut[blockOff]) + int(wordOff*bitsSize) + int(select64(w, int64(rankLeft)))
+}
+
+func (bvr *BitVectorRank) write(w io.Writer) error {
+	if err := bvr.BitVector.write(w); err != nil {
+		return err
+	}
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], uint32(bvr.blockSize))
+	if _, err := w.Write(buf[:]); err != nil {
+		return err
+	}
+	// if _, err := w.Write(u32SliceToBytes(bvr.rankLut)); err != nil {
+	// 	return err
+	// }
+	return bvr.writeLUT(w)
 }
 
 func (bvr *BitVectorRank) unmarshal(buf []byte, pos int) (r int, err error) {
 	if r, err = bvr.BitVector.unmarshal(buf, pos); err != nil {
 		return 0, nil
 	}
-	bvr.blockSize = rankSparseBlockSize
+
+	bvr.blockSize = int(UnmarshalUint32(buf, r))
+	r += 4
+	// reading lut
+	lutSize := int(bvr.lutSize())
+	if len(buf) < lutSize {
+		return 0, fmt.Errorf("cannot read lut: %d from rankVector: %d", lutSize, len(buf))
+	}
+	bvr.rankLut = bytesToU32Slice(buf[r : r+lutSize])
+	return r + lutSize, nil
+}
+
+func (bvr *BitVectorRank) lutSize() int {
+	return (bvr.numBits/bvr.blockSize + 1) * 4
+}
+
+type BitVectorRank2 struct {
+	BitVector
+
+	blockSize int
+	rankLut   []uint32
+}
+
+func (bvr *BitVectorRank2) Init(blockSize int, levels []*Level, bitmapType BitmapType) {
+	bvr.BitVector.Init(levels, bitmapType)
+	bvr.blockSize = blockSize
 	bvr.initLut()
-	return r, nil
+}
+
+func (bvr *BitVectorRank2) Init2(blockSize int, levels []*Level, bitmapType BitmapType) {
+	bvr.BitVector.Init(levels, bitmapType)
+	bvr.blockSize = blockSize
+	// bvr.initLut()
+}
+
+func (bvr *BitVectorRank2) initLut() {
+	wordPerBlk := bvr.blockSize / bitsSize
+	nblks := 0
+	if bvr.numBits%bvr.blockSize == 0 {
+		nblks = bvr.numBits / bvr.blockSize
+	} else {
+		nblks = bvr.numBits/bvr.blockSize + 1
+	}
+	bvr.rankLut = make([]uint32, nblks)
+
+	// var totalRank uint32
+	for i := 0; i < nblks; i++ {
+		bvr.rankLut[i] = uint32(popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize))
+		// bvr.rankLut[i] = totalRank
+	}
+	// bvr.rankLut[nblks-1] = totalRank
+}
+
+func (bvr *BitVectorRank2) writeLUT(w io.Writer) error {
+	wordPerBlk := bvr.blockSize / bitsSize
+	nblks := 0
+	if bvr.numBits%bvr.blockSize == 0 {
+		nblks = bvr.numBits / bvr.blockSize
+	} else {
+		nblks = bvr.numBits/bvr.blockSize + 1
+	}
+	// bvr.rankLut = make([]uint32, nblks)
+	var buf [4]byte
+
+	var totalRank uint32
+	for i := 0; i < nblks; i++ {
+		totalRank = uint32(popcountBlock(bvr.bits, i*wordPerBlk, bvr.blockSize))
+		binary.LittleEndian.PutUint32(buf[:], uint32(totalRank))
+		if _, err := w.Write(buf[:]); err != nil {
+			return err
+		}
+		// bvr.rankLut[i] = totalRank
+	}
+	// bvr.rankLut[nblks-1] = totalRank
+	// binary.LittleEndian.PutUint32(buf[:], uint32(totalRank))
+	// if _, err := w.Write(buf[:]); err != nil {
+	// 	return err
+	// }
+	return nil
+}
+
+// one count [0 pos]
+func (bvr *BitVectorRank2) Rank(pos int) int {
+	wordPreBlk := bvr.blockSize / bitsSize
+	blockOff := pos / bvr.blockSize
+	bitsOff := pos % bvr.blockSize
+
+	return int(bvr.rankLut[blockOff]) + popcountBlock(bvr.bits, blockOff*wordPreBlk, bitsOff+1)
+}
+
+func (bvr *BitVectorRank2) Select(rank int) int {
+	wordPreBlk := bvr.blockSize / bitsSize
+	// blockOff := rank / bvr.blockSize
+	// bitsOff := pos % bvr.blockSize
+
+	rankLeft := uint32(rank)
+	idx := 0
+	// blockOff * wordPreBlk
+	// ones := uint32(0)
+	ones := bvr.rankLut[idx]
+	for ones < rankLeft {
+		rankLeft -= ones
+		idx++
+		// ones = bvr.rankLut[wordOff]
+		// ones = uint32(bits.OnesCount64(w))
+		ones = bvr.rankLut[idx]
+	}
+	// - bvr.rankLut[blockOff]
+	wordOff := idx * wordPreBlk
+	// blockOff * wordPreBlk
+	// ones := uint32(0)
+	w := bvr.bits[wordOff]
+	ones = uint32(bits.OnesCount64(w))
+	for ones < rankLeft {
+		rankLeft -= ones
+		wordOff++
+		// ones = bvr.rankLut[wordOff]
+		w = bvr.bits[wordOff]
+		ones = uint32(bits.OnesCount64(w))
+		// ones = bvr.rankLut[wordOff]
+	}
+
+	return int(wordOff*bitsSize) + int(select64(w, int64(rankLeft)))
+}
+
+func (bvr *BitVectorRank2) write(w io.Writer) error {
+	if err := bvr.BitVector.write(w); err != nil {
+		return err
+	}
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], uint32(bvr.blockSize))
+	if _, err := w.Write(buf[:]); err != nil {
+		return err
+	}
+	// if _, err := w.Write(u32SliceToBytes(bvr.rankLut)); err != nil {
+	// 	return err
+	// }
+	return bvr.writeLUT(w)
+}
+
+func (bvr *BitVectorRank2) unmarshal(buf []byte, pos int) (r int, err error) {
+	if r, err = bvr.BitVector.unmarshal(buf, pos); err != nil {
+		return 0, nil
+	}
+
+	bvr.blockSize = int(UnmarshalUint32(buf, r))
+	r += 4
+	// reading lut
+	lutSize := int(bvr.lutSize())
+	if len(buf) < lutSize {
+		return 0, fmt.Errorf("cannot read lut: %d from rankVector: %d", lutSize, len(buf))
+	}
+	bvr.rankLut = bytesToU32Slice(buf[r : r+lutSize])
+	return r + lutSize, nil
+}
+
+func (bvr *BitVectorRank2) lutSize() int {
+	return (bvr.numBits/bvr.blockSize + 1) * 4
 }

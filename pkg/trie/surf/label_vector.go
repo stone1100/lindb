@@ -51,6 +51,15 @@ func (lv *LabelVector) Search(k byte, off, size int) (int, bool) {
 	if end > len(lv.labels) {
 		end = len(lv.labels)
 	}
+	if size < 4 {
+		for i := start; i < end; i++ {
+			if lv.labels[i] == k {
+				return i, true
+			}
+		}
+		return off, false
+	}
+
 	result := bytes.IndexByte(lv.labels[start:end], k)
 	if result < 0 {
 		return off, false
@@ -63,7 +72,6 @@ func (lv *LabelVector) SearchGreaterThan(label byte, pos, size int) (int, bool) 
 		pos++
 		size--
 	}
-
 	result := sort.Search(size, func(i int) bool { return lv.labels[pos+i] > label })
 	if result == size {
 		return pos + result - 1, false
@@ -111,6 +119,7 @@ type compressPathVector struct {
 
 func (cpv *compressPathVector) Init(levels []*Level, bitmapType BitmapType) {
 	cpv.hasPathVector.Init(rankSparseBlockSize, levels, bitmapType)
+
 	cpv.initData(levels)
 }
 

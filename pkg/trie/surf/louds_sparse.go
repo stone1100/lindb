@@ -1,9 +1,7 @@
 package surf
 
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
 )
 
 type loudsSparse struct {
@@ -17,28 +15,33 @@ type loudsSparse struct {
 	totalKeys int
 }
 
+func NewLoudsSparse() *loudsSparse {
+	return &loudsSparse{
+		labels:   NewLabelVector(),
+		hasChild: &BitVectorRank{},
+		louds:    &BitVectorSelect{},
+		suffixes: &SuffixVector{},
+		values:   &ValueVector{},
+	}
+}
+
 func (ls *loudsSparse) Init(builder *Builder) {
 	ls.height = builder.height
 	ls.totalKeys = builder.totalKeys
 
 	// init louds-sparse labels
-	ls.labels = NewLabelVector()
 	ls.labels.Init(builder.levels)
 
 	// init louds-sparse has-child
-	ls.hasChild = &BitVectorRank{}
 	ls.hasChild.Init(rankSparseBlockSize, builder.levels, HasChild)
 
 	// init louds-sparse louds
-	ls.louds = &BitVectorSelect{}
 	ls.louds.Init(builder.levels, Louds)
 
 	// init suffix
-	ls.suffixes = &SuffixVector{}
 	ls.suffixes.Init(builder.levels, HasSuffix)
 
 	// init values
-	ls.values = &ValueVector{}
 	ls.values.Init(builder.levels)
 }
 
@@ -99,43 +102,6 @@ func (ls *loudsSparse) isEndOfNode(pos int) bool {
 	return pos == ls.louds.numBits-1 || ls.louds.ReadBit(pos+1)
 }
 
-func (ls *loudsSparse) write(w io.Writer) error {
-	var (
-		bs [4]byte
-	)
-	// write total keys
-	binary.LittleEndian.PutUint32(bs[:], uint32(ls.totalKeys))
-	if _, err := w.Write(bs[:]); err != nil {
-		return err
-	}
-	// write height
-	binary.LittleEndian.PutUint32(bs[:], uint32(ls.height))
-	if _, err := w.Write(bs[:]); err != nil {
-		return err
-	}
-	// write labels
-	if err := ls.labels.write(w); err != nil {
-		return err
-	}
-	// write has child
-	if err := ls.hasChild.write(w); err != nil {
-		return err
-	}
-	// write louds
-	if err := ls.louds.write(w); err != nil {
-		return err
-	}
-	// write suffixes
-	if err := ls.suffixes.write(w); err != nil {
-		return err
-	}
-	// write values
-	if err := ls.values.write(w); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ls *loudsSparse) unmarshal(buf []byte) (err error) {
 	pos := 0
 	ls.totalKeys = int(UnmarshalUint32(buf, pos))
@@ -144,35 +110,25 @@ func (ls *loudsSparse) unmarshal(buf []byte) (err error) {
 	pos += 4
 
 	// read labels
-	labels := &LabelVector{}
-	if pos, err = labels.unmarshal(buf, pos); err != nil {
+	if pos, err = ls.labels.unmarshal(buf, pos); err != nil {
 		return err
 	}
-	ls.labels = labels
 	// read has child
-	hasChild := &BitVectorRank{}
-	if pos, err = hasChild.unmarshal(buf, pos); err != nil {
+	if pos, err = ls.hasChild.unmarshal(buf, pos); err != nil {
 		return nil
 	}
-	ls.hasChild = hasChild
 	// read louds
-	louds := &BitVectorSelect{}
-	if pos, err = louds.unmarshal(buf, pos); err != nil {
+	if pos, err = ls.louds.unmarshal(buf, pos); err != nil {
 		return nil
 	}
-	ls.louds = louds
 	// read suffixes
-	suffixes := &SuffixVector{}
-	if pos, err = suffixes.unmarshal(buf, pos); err != nil {
+	if pos, err = ls.suffixes.unmarshal(buf, pos); err != nil {
 		return nil
 	}
-	ls.suffixes = suffixes
 	// read values
-	values := &ValueVector{}
-	if _, err = values.unmarshal(ls.totalKeys, buf, pos); err != nil {
+	if _, err = ls.values.unmarshal(ls.totalKeys, buf, pos); err != nil {
 		return nil
 	}
-	ls.values = values
 	return nil
 }
 

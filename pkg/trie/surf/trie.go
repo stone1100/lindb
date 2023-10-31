@@ -1,9 +1,5 @@
 package surf
 
-import (
-	"io"
-)
-
 // node num = rank(i)
 // i = select1(node num)
 //
@@ -17,7 +13,9 @@ type Trie struct {
 }
 
 func NewTrie() *Trie {
-	return &Trie{}
+	return &Trie{
+		loudsSparse: NewLoudsSparse(),
+	}
 }
 
 func (trie *Trie) Create(keys [][]byte, values []uint32) {
@@ -29,9 +27,9 @@ func (trie *Trie) Create(keys [][]byte, values []uint32) {
 
 func (trie *Trie) Init(builder *Builder) {
 	// init Louds-Sparse
-	trie.loudsSparse = &loudsSparse{}
 	trie.loudsSparse.Init(builder)
 }
+
 func (trie *Trie) Get(key []byte) (value uint32, exist bool) {
 	return trie.loudsSparse.lookupKey(key)
 }
@@ -40,21 +38,11 @@ func (trie *Trie) Iterator() *Iterator {
 	return NewIterator(trie)
 }
 
-func (trie *Trie) Write(w io.Writer) (err error) {
-	// write Louds-Sparse
-	if err = trie.loudsSparse.write(w); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (trie *Trie) Unmarshal(buf []byte) (err error) {
 	// unmarshal Louds-Sparse
-	loudsSparse := &loudsSparse{}
-	if err = loudsSparse.unmarshal(buf); err != nil {
+	if err = trie.loudsSparse.unmarshal(buf); err != nil {
 		return err
 	}
-	trie.loudsSparse = loudsSparse
 	return nil
 }
 

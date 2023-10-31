@@ -67,21 +67,21 @@ func (b *Builder) Write(w io.Writer) error {
 		}
 	}
 	// write has child
-	hasChild := &BitVector{}
-	hasChild.Init(b.levels, HasChild)
-	if err := hasChild.write(w); err != nil {
+	child := &BitVectorRank{}
+	child.Init2(rankSparseBlockSize, b.levels, HasChild)
+	if err := child.write(w); err != nil {
 		return err
 	}
 	// write louds
-	louds := &BitVector{}
+	louds := &BitVectorSelect{}
 	louds.Init(b.levels, Louds)
 	if err := louds.write(w); err != nil {
 		return err
 	}
 	// write suffixes
-	hasSuffixes := &BitVector{}
-	hasSuffixes.Init(b.levels, HasSuffix)
-	if err := hasSuffixes.write(w); err != nil {
+	hasSuffix := &BitVectorRank{}
+	hasSuffix.Init2(rankSparseBlockSize, b.levels, HasSuffix)
+	if err := hasSuffix.write(w); err != nil {
 		return err
 	}
 	suffixes := &SuffixVector{}
@@ -89,6 +89,7 @@ func (b *Builder) Write(w io.Writer) error {
 	if err := suffixes.write(w); err != nil {
 		return err
 	}
+
 	// write values
 	for level := range b.levels {
 		values := b.levels[level].values

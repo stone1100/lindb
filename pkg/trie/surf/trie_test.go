@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lindb/roaring"
 )
 
 type kvPair struct {
@@ -284,4 +286,11 @@ func TestTrie_TestData_UUID(t *testing.T) {
 
 func TestTrie_TestData_Hsk_words(t *testing.T) {
 	assertTestData(t, "../testdata/hsk_words.txt.gz")
+}
+
+func TestBitmap(t *testing.T) {
+	bm := roaring.New()
+	bm.Add(100)
+	fmt.Println(bm.Select(0))
+	fmt.Println(bm.Rank(100))
 }

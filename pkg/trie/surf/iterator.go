@@ -75,14 +75,14 @@ func (it *loudsSparseIterator) reset() {
 func (it *loudsSparseIterator) moveToLeftMostKey() {
 	if it.level == 0 {
 		pos := it.trie.getFirstLabelPos(0)
-		label := it.trie.labels.Read(pos)
+		label := it.trie.labels.labels[pos]
 		it.append(label, pos)
 	}
 	level := it.level - 1
 	pos := it.posInTrie[level]
-	if !it.trie.hasChild.ReadBit(int(pos)) {
-		label := it.trie.labels.Read(int(pos))
-		if label == terminator && !it.trie.isEndOfNode(int(pos)) {
+	if !it.trie.hasChild.ReadBit(pos) {
+		label := it.trie.labels.labels[pos]
+		if label == terminator && !it.trie.isEndOfNode(pos) {
 			it.isAtTerminator = true
 		}
 		it.isValid = true
@@ -93,7 +93,7 @@ func (it *loudsSparseIterator) moveToLeftMostKey() {
 		// process child
 		nodeNum := it.trie.getChildNodeNum(pos)
 		pos = it.trie.getFirstLabelPos(nodeNum)
-		label := it.trie.labels.Read(int(pos))
+		label := it.trie.labels.labels[pos]
 
 		// if trie branch terminates
 		if !it.trie.hasChild.ReadBit(int(pos)) {
@@ -123,7 +123,7 @@ func (it *loudsSparseIterator) doNext() {
 		return
 	}
 	// read next label
-	label := it.trie.labels.Read(pos)
+	label := it.trie.labels.labels[pos]
 	it.append(label, pos)
 	// read more lable
 	it.moveToLeftMostKey()
@@ -175,7 +175,7 @@ func (it *loudsSparseIterator) seek(prefix []byte) bool {
 		nodeNum = it.trie.getChildNodeNum(pos)
 		pos = it.trie.getFirstLabelPos(nodeNum)
 	}
-	if it.trie.labels.Read(pos) == terminator &&
+	if it.trie.labels.labels[pos] == terminator &&
 		!it.trie.hasChild.ReadBit(pos) &&
 		!it.trie.isEndOfNode(pos) {
 		// prefix is key
@@ -267,5 +267,5 @@ func (it *loudsSparseIterator) append(label byte, pos int) {
 }
 
 func (it *loudsSparseIterator) appendByPos(pos int) {
-	it.append(it.trie.labels.Read(pos), pos)
+	it.append(it.trie.labels.labels[pos], pos)
 }

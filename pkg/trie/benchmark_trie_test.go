@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/lindb/lindb/pkg/trie"
+	"github.com/lindb/lindb/pkg/unique"
 )
 
 // after:  2982368 size 42.2ms (650k ip)
@@ -66,6 +67,27 @@ func BenchmarkTrie_Iterator_NoRead(b *testing.B) {
 		for itr.Valid() {
 			itr.Next()
 		}
+	}
+}
+
+var (
+	store      unique.IDStore
+	ips, ranks = newTestIPs(1 << 8)
+)
+
+func init() {
+	store, _ = unique.NewIDStore("./test")
+	for idx := range ips {
+		store.Put(ips[idx], ranks[idx])
+	}
+}
+
+// 13.5ms
+func BenchmarkTrie_Iterator_NoRead2(b *testing.B) {
+	key := ips[len(ips)-1]
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = store.Get(key)
 	}
 }
 
