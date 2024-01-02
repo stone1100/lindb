@@ -1,20 +1,3 @@
-// Licensed to LinDB under one or more contributor
-// license agreements. See the NOTICE file distributed with
-// this work for additional information regarding copyright
-// ownership. LinDB licenses this file to you under
-// the Apache License, Version 2.0 (the "License"); you may
-// not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 // Code generated from ./sql/grammar/SQL.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package grammar // SQL
@@ -39,14 +22,14 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#showMasterStmt.
 	VisitShowMasterStmt(ctx *ShowMasterStmtContext) interface{}
 
+	// Visit a parse tree produced by SQLParser#showBrokersStmt.
+	VisitShowBrokersStmt(ctx *ShowBrokersStmtContext) interface{}
+
 	// Visit a parse tree produced by SQLParser#showRequestsStmt.
 	VisitShowRequestsStmt(ctx *ShowRequestsStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showRequestStmt.
-	VisitShowRequestStmt(ctx *ShowRequestStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showBrokersStmt.
-	VisitShowBrokersStmt(ctx *ShowBrokersStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#recoverStorageStmt.
+	VisitRecoverStorageStmt(ctx *RecoverStorageStmtContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#showLimitStmt.
 	VisitShowLimitStmt(ctx *ShowLimitStmtContext) interface{}
@@ -54,47 +37,17 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#showMetadataTypesStmt.
 	VisitShowMetadataTypesStmt(ctx *ShowMetadataTypesStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showRootMetaStmt.
-	VisitShowRootMetaStmt(ctx *ShowRootMetaStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showBrokerMetaStmt.
-	VisitShowBrokerMetaStmt(ctx *ShowBrokerMetaStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showMasterMetaStmt.
-	VisitShowMasterMetaStmt(ctx *ShowMasterMetaStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showStorageMetaStmt.
-	VisitShowStorageMetaStmt(ctx *ShowStorageMetaStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#showMetadatasStmt.
+	VisitShowMetadatasStmt(ctx *ShowMetadatasStmtContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#showAliveStmt.
 	VisitShowAliveStmt(ctx *ShowAliveStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showReplicationStmt.
-	VisitShowReplicationStmt(ctx *ShowReplicationStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#showReplicationsStmt.
+	VisitShowReplicationsStmt(ctx *ShowReplicationsStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showMemoryDatabaseStmt.
-	VisitShowMemoryDatabaseStmt(ctx *ShowMemoryDatabaseStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showRootMetricStmt.
-	VisitShowRootMetricStmt(ctx *ShowRootMetricStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showBrokerMetricStmt.
-	VisitShowBrokerMetricStmt(ctx *ShowBrokerMetricStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showStorageMetricStmt.
-	VisitShowStorageMetricStmt(ctx *ShowStorageMetricStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#createStorageStmt.
-	VisitCreateStorageStmt(ctx *CreateStorageStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#createBrokerStmt.
-	VisitCreateBrokerStmt(ctx *CreateBrokerStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#recoverStorageStmt.
-	VisitRecoverStorageStmt(ctx *RecoverStorageStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#showSchemasStmt.
-	VisitShowSchemasStmt(ctx *ShowSchemasStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#showStateStmt.
+	VisitShowStateStmt(ctx *ShowStateStmtContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#createDatabaseStmt.
 	VisitCreateDatabaseStmt(ctx *CreateDatabaseStmtContext) interface{}
@@ -102,11 +55,14 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#dropDatabaseStmt.
 	VisitDropDatabaseStmt(ctx *DropDatabaseStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showDatabaseStmt.
-	VisitShowDatabaseStmt(ctx *ShowDatabaseStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#showDatabasesStmt.
+	VisitShowDatabasesStmt(ctx *ShowDatabasesStmtContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#showNameSpacesStmt.
-	VisitShowNameSpacesStmt(ctx *ShowNameSpacesStmtContext) interface{}
+	// Visit a parse tree produced by SQLParser#createBrokerStmt.
+	VisitCreateBrokerStmt(ctx *CreateBrokerStmtContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#showNamespacesStmt.
+	VisitShowNamespacesStmt(ctx *ShowNamespacesStmtContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#showMetricsStmt.
 	VisitShowMetricsStmt(ctx *ShowMetricsStmtContext) interface{}
@@ -119,45 +75,6 @@ type SQLVisitor interface {
 
 	// Visit a parse tree produced by SQLParser#showTagValuesStmt.
 	VisitShowTagValuesStmt(ctx *ShowTagValuesStmtContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#prefix.
-	VisitPrefix(ctx *PrefixContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#withTagKey.
-	VisitWithTagKey(ctx *WithTagKeyContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#namespace.
-	VisitNamespace(ctx *NamespaceContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#databaseName.
-	VisitDatabaseName(ctx *DatabaseNameContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#storageName.
-	VisitStorageName(ctx *StorageNameContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#requestID.
-	VisitRequestID(ctx *RequestIDContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#source.
-	VisitSource(ctx *SourceContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#optionClause.
-	VisitOptionClause(ctx *OptionClauseContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#optionPairs.
-	VisitOptionPairs(ctx *OptionPairsContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#closedOptionPairs.
-	VisitClosedOptionPairs(ctx *ClosedOptionPairsContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#optionPair.
-	VisitOptionPair(ctx *OptionPairContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#optionKey.
-	VisitOptionKey(ctx *OptionKeyContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#optionValue.
-	VisitOptionValue(ctx *OptionValueContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#queryStmt.
 	VisitQueryStmt(ctx *QueryStmtContext) interface{}
@@ -177,15 +94,6 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#alias.
 	VisitAlias(ctx *AliasContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#brokerFilter.
-	VisitBrokerFilter(ctx *BrokerFilterContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#databaseFilter.
-	VisitDatabaseFilter(ctx *DatabaseFilterContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#typeFilter.
-	VisitTypeFilter(ctx *TypeFilterContext) interface{}
-
 	// Visit a parse tree produced by SQLParser#fromClause.
 	VisitFromClause(ctx *FromClauseContext) interface{}
 
@@ -195,20 +103,11 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#conditionExpr.
 	VisitConditionExpr(ctx *ConditionExprContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#tagFilterExpr.
-	VisitTagFilterExpr(ctx *TagFilterExprContext) interface{}
+	// Visit a parse tree produced by SQLParser#expression.
+	VisitExpression(ctx *ExpressionContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#tagValueList.
-	VisitTagValueList(ctx *TagValueListContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#metricListFilter.
-	VisitMetricListFilter(ctx *MetricListFilterContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#metricList.
-	VisitMetricList(ctx *MetricListContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#timeRangeExpr.
-	VisitTimeRangeExpr(ctx *TimeRangeExprContext) interface{}
+	// Visit a parse tree produced by SQLParser#valueList.
+	VisitValueList(ctx *ValueListContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#timeExpr.
 	VisitTimeExpr(ctx *TimeExprContext) interface{}
@@ -285,23 +184,14 @@ type SQLVisitor interface {
 	// Visit a parse tree produced by SQLParser#exprAtom.
 	VisitExprAtom(ctx *ExprAtomContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#identFilter.
-	VisitIdentFilter(ctx *IdentFilterContext) interface{}
+	// Visit a parse tree produced by SQLParser#properties.
+	VisitProperties(ctx *PropertiesContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#json.
-	VisitJson(ctx *JsonContext) interface{}
+	// Visit a parse tree produced by SQLParser#propertyAssignments.
+	VisitPropertyAssignments(ctx *PropertyAssignmentsContext) interface{}
 
-	// Visit a parse tree produced by SQLParser#toml.
-	VisitToml(ctx *TomlContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#obj.
-	VisitObj(ctx *ObjContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#pair.
-	VisitPair(ctx *PairContext) interface{}
-
-	// Visit a parse tree produced by SQLParser#arr.
-	VisitArr(ctx *ArrContext) interface{}
+	// Visit a parse tree produced by SQLParser#property.
+	VisitProperty(ctx *PropertyContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#value.
 	VisitValue(ctx *ValueContext) interface{}
@@ -323,6 +213,24 @@ type SQLVisitor interface {
 
 	// Visit a parse tree produced by SQLParser#tagValue.
 	VisitTagValue(ctx *TagValueContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#prefix.
+	VisitPrefix(ctx *PrefixContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#withTagKey.
+	VisitWithTagKey(ctx *WithTagKeyContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#namespace.
+	VisitNamespace(ctx *NamespaceContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#name.
+	VisitName(ctx *NameContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#requestID.
+	VisitRequestID(ctx *RequestIDContext) interface{}
+
+	// Visit a parse tree produced by SQLParser#toml.
+	VisitToml(ctx *TomlContext) interface{}
 
 	// Visit a parse tree produced by SQLParser#ident.
 	VisitIdent(ctx *IdentContext) interface{}

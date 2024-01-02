@@ -25,6 +25,7 @@ import (
 
 // stateStmtParser represents show state statement parser.
 type stateStmtParser struct {
+	baseStmtParser
 	state *stmt.State
 }
 

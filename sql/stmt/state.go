@@ -43,10 +43,7 @@ const (
 
 // State represents show state statement.
 type State struct {
-	Type     StateType
-	Database string
-
-	MetricNames []string
+	Condition Expr
 }
 
 // StatementType returns state query type.

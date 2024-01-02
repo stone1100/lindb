@@ -1,20 +1,3 @@
-// Licensed to LinDB under one or more contributor
-// license agreements. See the NOTICE file distributed with
-// this work for additional information regarding copyright
-// ownership. LinDB licenses this file to you under
-// the Apache License, Version 2.0 (the "License"); you may
-// not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 // Code generated from ./sql/grammar/SQL.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package grammar // SQL
@@ -44,15 +27,15 @@ func (v *BaseSQLVisitor) VisitShowMasterStmt(ctx *ShowMasterStmtContext) interfa
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseSQLVisitor) VisitShowBrokersStmt(ctx *ShowBrokersStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseSQLVisitor) VisitShowRequestsStmt(ctx *ShowRequestsStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowRequestStmt(ctx *ShowRequestStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowBrokersStmt(ctx *ShowBrokersStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitRecoverStorageStmt(ctx *RecoverStorageStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -64,19 +47,7 @@ func (v *BaseSQLVisitor) VisitShowMetadataTypesStmt(ctx *ShowMetadataTypesStmtCo
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowRootMetaStmt(ctx *ShowRootMetaStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowBrokerMetaStmt(ctx *ShowBrokerMetaStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowMasterMetaStmt(ctx *ShowMasterMetaStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowStorageMetaStmt(ctx *ShowStorageMetaStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitShowMetadatasStmt(ctx *ShowMetadatasStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -84,39 +55,11 @@ func (v *BaseSQLVisitor) VisitShowAliveStmt(ctx *ShowAliveStmtContext) interface
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowReplicationStmt(ctx *ShowReplicationStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitShowReplicationsStmt(ctx *ShowReplicationsStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowMemoryDatabaseStmt(ctx *ShowMemoryDatabaseStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowRootMetricStmt(ctx *ShowRootMetricStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowBrokerMetricStmt(ctx *ShowBrokerMetricStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowStorageMetricStmt(ctx *ShowStorageMetricStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitCreateStorageStmt(ctx *CreateStorageStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitCreateBrokerStmt(ctx *CreateBrokerStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitRecoverStorageStmt(ctx *RecoverStorageStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitShowSchemasStmt(ctx *ShowSchemasStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitShowStateStmt(ctx *ShowStateStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -128,11 +71,15 @@ func (v *BaseSQLVisitor) VisitDropDatabaseStmt(ctx *DropDatabaseStmtContext) int
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowDatabaseStmt(ctx *ShowDatabaseStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitShowDatabasesStmt(ctx *ShowDatabasesStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitShowNameSpacesStmt(ctx *ShowNameSpacesStmtContext) interface{} {
+func (v *BaseSQLVisitor) VisitCreateBrokerStmt(ctx *CreateBrokerStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitShowNamespacesStmt(ctx *ShowNamespacesStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -149,58 +96,6 @@ func (v *BaseSQLVisitor) VisitShowTagKeysStmt(ctx *ShowTagKeysStmtContext) inter
 }
 
 func (v *BaseSQLVisitor) VisitShowTagValuesStmt(ctx *ShowTagValuesStmtContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitPrefix(ctx *PrefixContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitWithTagKey(ctx *WithTagKeyContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitNamespace(ctx *NamespaceContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitDatabaseName(ctx *DatabaseNameContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitStorageName(ctx *StorageNameContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitRequestID(ctx *RequestIDContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitSource(ctx *SourceContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitOptionClause(ctx *OptionClauseContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitOptionPairs(ctx *OptionPairsContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitClosedOptionPairs(ctx *ClosedOptionPairsContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitOptionPair(ctx *OptionPairContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitOptionKey(ctx *OptionKeyContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitOptionValue(ctx *OptionValueContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -228,18 +123,6 @@ func (v *BaseSQLVisitor) VisitAlias(ctx *AliasContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitBrokerFilter(ctx *BrokerFilterContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitDatabaseFilter(ctx *DatabaseFilterContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitTypeFilter(ctx *TypeFilterContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
 func (v *BaseSQLVisitor) VisitFromClause(ctx *FromClauseContext) interface{} {
 	return v.VisitChildren(ctx)
 }
@@ -252,23 +135,11 @@ func (v *BaseSQLVisitor) VisitConditionExpr(ctx *ConditionExprContext) interface
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitTagFilterExpr(ctx *TagFilterExprContext) interface{} {
+func (v *BaseSQLVisitor) VisitExpression(ctx *ExpressionContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitTagValueList(ctx *TagValueListContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitMetricListFilter(ctx *MetricListFilterContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitMetricList(ctx *MetricListContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitTimeRangeExpr(ctx *TimeRangeExprContext) interface{} {
+func (v *BaseSQLVisitor) VisitValueList(ctx *ValueListContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -372,27 +243,15 @@ func (v *BaseSQLVisitor) VisitExprAtom(ctx *ExprAtomContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitIdentFilter(ctx *IdentFilterContext) interface{} {
+func (v *BaseSQLVisitor) VisitProperties(ctx *PropertiesContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitJson(ctx *JsonContext) interface{} {
+func (v *BaseSQLVisitor) VisitPropertyAssignments(ctx *PropertyAssignmentsContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseSQLVisitor) VisitToml(ctx *TomlContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitObj(ctx *ObjContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitPair(ctx *PairContext) interface{} {
-	return v.VisitChildren(ctx)
-}
-
-func (v *BaseSQLVisitor) VisitArr(ctx *ArrContext) interface{} {
+func (v *BaseSQLVisitor) VisitProperty(ctx *PropertyContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -421,6 +280,30 @@ func (v *BaseSQLVisitor) VisitTagKey(ctx *TagKeyContext) interface{} {
 }
 
 func (v *BaseSQLVisitor) VisitTagValue(ctx *TagValueContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitPrefix(ctx *PrefixContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitWithTagKey(ctx *WithTagKeyContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitNamespace(ctx *NamespaceContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitName(ctx *NameContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitRequestID(ctx *RequestIDContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseSQLVisitor) VisitToml(ctx *TomlContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

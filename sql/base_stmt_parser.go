@@ -62,13 +62,12 @@ func (b *baseStmtParser) visitNamespace(ctx *grammar.NamespaceContext) {
 	b.namespace = strutil.GetStringValue(ctx.Ident().GetText())
 }
 
-// visitTagFilterExpr visits when production tag filter expression is entered
-func (b *baseStmtParser) visitTagFilterExpr(ctx *grammar.TagFilterExprContext) {
-	tagKey := ctx.TagKey()
+// visitExpression visits when production expression is entered.
+func (b *baseStmtParser) visitExpression(ctx *grammar.ExpressionContext) {
 	var expr stmt.Expr
 	switch {
-	case ctx.TagKey() != nil:
-		expr = b.createTagFilterExpr(tagKey, ctx)
+	case ctx.Name() != nil:
+		expr = b.createExpr(ctx.Name(), ctx)
 	case ctx.T_OPEN_P() != nil:
 		expr = &stmt.ParenExpr{}
 	case ctx.T_AND() != nil:
@@ -81,68 +80,68 @@ func (b *baseStmtParser) visitTagFilterExpr(ctx *grammar.TagFilterExprContext) {
 }
 
 // visitTagValue visits when production tag value expression is entered
-func (b *baseStmtParser) visitTagValue(ctx *grammar.TagValueContext) {
+func (b *baseStmtParser) visitTagValue(ctx *grammar.ValueContext) {
 	if b.exprStack.Empty() {
 		return
 	}
-	tagFilterExpr := b.exprStack.Peek()
-	tagValue := strutil.GetStringValue(ctx.Ident().GetText())
-	switch expr := tagFilterExpr.(type) {
+	filterExpr := b.exprStack.Peek()
+	value := strutil.GetStringValue(ctx.STRING().GetText())
+	switch expr := filterExpr.(type) {
 	case *stmt.NotExpr:
-		b.setTagFilterExprValue(expr.Expr, tagValue)
+		b.setExprValue(expr.Expr, value)
 	case stmt.Expr:
-		b.setTagFilterExprValue(expr, tagValue)
+		b.setExprValue(expr, value)
 	}
 }
 
-// setTagFilterExprValue sets tag value for tag filter expression
-func (b *baseStmtParser) setTagFilterExprValue(expr stmt.Expr, tagValue string) {
+// setExprValue sets tag value for tag filter expression
+func (b *baseStmtParser) setExprValue(expr stmt.Expr, value string) {
 	switch e := expr.(type) {
 	case *stmt.EqualsExpr:
-		e.Value = tagValue
+		e.Value = value
 	case *stmt.LikeExpr:
-		e.Value = tagValue
+		e.Value = value
 	case *stmt.RegexExpr:
-		e.Regexp = tagValue
+		e.Regexp = value
 	case *stmt.InExpr:
-		e.Values = append(e.Values, tagValue)
+		e.Values = append(e.Values, value)
 	}
 }
 
-// createTagFilterExpr creates tag filer expr like equals, like, in and regex etc.
-func (b *baseStmtParser) createTagFilterExpr(tagKey grammar.ITagKeyContext,
-	ctx *grammar.TagFilterExprContext) stmt.Expr {
+// createExpr creates filer expr like equals, like, in and regex etc.
+func (b *baseStmtParser) createExpr(name grammar.INameContext,
+	ctx *grammar.ExpressionContext) stmt.Expr {
 	var expr stmt.Expr
-	if tagKeyCtx, ok := tagKey.(*grammar.TagKeyContext); ok {
-		tagKeyStr := strutil.GetStringValue(tagKeyCtx.Ident().GetText())
+	if nameCtx, ok := name.(*grammar.NameContext); ok {
+		nameStr := strutil.GetStringValue(nameCtx.Ident().GetText())
 		switch {
 		case ctx.T_EQUAL() != nil:
-			expr = &stmt.EqualsExpr{Key: tagKeyStr}
+			expr = &stmt.EqualsExpr{Key: nameStr}
 		case ctx.T_LIKE() != nil:
 			if ctx.T_NOT() != nil {
-				expr = &stmt.NotExpr{Expr: &stmt.LikeExpr{Key: tagKeyStr}}
+				expr = &stmt.NotExpr{Expr: &stmt.LikeExpr{Key: nameStr}}
 			} else {
-				expr = &stmt.LikeExpr{Key: tagKeyStr}
+				expr = &stmt.LikeExpr{Key: nameStr}
 			}
 		case ctx.T_REGEXP() != nil:
-			expr = &stmt.RegexExpr{Key: tagKeyStr}
+			expr = &stmt.RegexExpr{Key: nameStr}
 		case ctx.T_NEQREGEXP() != nil:
-			expr = &stmt.NotExpr{Expr: &stmt.RegexExpr{Key: tagKeyStr}}
+			expr = &stmt.NotExpr{Expr: &stmt.RegexExpr{Key: nameStr}}
 		case ctx.T_NOTEQUAL() != nil || ctx.T_NOTEQUAL2() != nil:
-			expr = &stmt.NotExpr{Expr: &stmt.EqualsExpr{Key: tagKeyStr}}
+			expr = &stmt.NotExpr{Expr: &stmt.EqualsExpr{Key: nameStr}}
 		case ctx.T_IN() != nil:
 			if ctx.T_NOT() != nil {
-				expr = &stmt.NotExpr{Expr: &stmt.InExpr{Key: tagKeyStr}}
+				expr = &stmt.NotExpr{Expr: &stmt.InExpr{Key: nameStr}}
 			} else {
-				expr = &stmt.InExpr{Key: tagKeyStr}
+				expr = &stmt.InExpr{Key: nameStr}
 			}
 		}
 	}
 	return expr
 }
 
-// completeTagFilterExpr completes a tag filter expression for query condition
-func (b *baseStmtParser) completeTagFilterExpr() {
+// completeExpression completes a filter expression for query condition
+func (b *baseStmtParser) completeExpression() {
 	expr := b.exprStack.Pop()
 	e, ok := expr.(stmt.Expr)
 	if !ok {

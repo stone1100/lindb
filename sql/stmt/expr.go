@@ -77,11 +77,11 @@ type Expr interface {
 	Rewrite() string
 }
 
-// TagFilter represents tag filter for searching time series
-type TagFilter interface {
+// FilterExpr represents filter expression for searching condition.
+type FilterExpr interface {
 	Expr
-	// TagKey returns the filter's tag key
-	TagKey() string
+	// Name returns the filter's name
+	Name() string
 }
 
 // SelectItem represents a select item from select statement

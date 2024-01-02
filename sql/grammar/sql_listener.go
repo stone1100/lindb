@@ -1,20 +1,3 @@
-// Licensed to LinDB under one or more contributor
-// license agreements. See the NOTICE file distributed with
-// this work for additional information regarding copyright
-// ownership. LinDB licenses this file to you under
-// the Apache License, Version 2.0 (the "License"); you may
-// not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing,
-// software distributed under the License is distributed on an
-// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied.  See the License for the
-// specific language governing permissions and limitations
-// under the License.
-
 // Code generated from ./sql/grammar/SQL.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package grammar // SQL
@@ -39,14 +22,14 @@ type SQLListener interface {
 	// EnterShowMasterStmt is called when entering the showMasterStmt production.
 	EnterShowMasterStmt(c *ShowMasterStmtContext)
 
+	// EnterShowBrokersStmt is called when entering the showBrokersStmt production.
+	EnterShowBrokersStmt(c *ShowBrokersStmtContext)
+
 	// EnterShowRequestsStmt is called when entering the showRequestsStmt production.
 	EnterShowRequestsStmt(c *ShowRequestsStmtContext)
 
-	// EnterShowRequestStmt is called when entering the showRequestStmt production.
-	EnterShowRequestStmt(c *ShowRequestStmtContext)
-
-	// EnterShowBrokersStmt is called when entering the showBrokersStmt production.
-	EnterShowBrokersStmt(c *ShowBrokersStmtContext)
+	// EnterRecoverStorageStmt is called when entering the recoverStorageStmt production.
+	EnterRecoverStorageStmt(c *RecoverStorageStmtContext)
 
 	// EnterShowLimitStmt is called when entering the showLimitStmt production.
 	EnterShowLimitStmt(c *ShowLimitStmtContext)
@@ -54,47 +37,17 @@ type SQLListener interface {
 	// EnterShowMetadataTypesStmt is called when entering the showMetadataTypesStmt production.
 	EnterShowMetadataTypesStmt(c *ShowMetadataTypesStmtContext)
 
-	// EnterShowRootMetaStmt is called when entering the showRootMetaStmt production.
-	EnterShowRootMetaStmt(c *ShowRootMetaStmtContext)
-
-	// EnterShowBrokerMetaStmt is called when entering the showBrokerMetaStmt production.
-	EnterShowBrokerMetaStmt(c *ShowBrokerMetaStmtContext)
-
-	// EnterShowMasterMetaStmt is called when entering the showMasterMetaStmt production.
-	EnterShowMasterMetaStmt(c *ShowMasterMetaStmtContext)
-
-	// EnterShowStorageMetaStmt is called when entering the showStorageMetaStmt production.
-	EnterShowStorageMetaStmt(c *ShowStorageMetaStmtContext)
+	// EnterShowMetadatasStmt is called when entering the showMetadatasStmt production.
+	EnterShowMetadatasStmt(c *ShowMetadatasStmtContext)
 
 	// EnterShowAliveStmt is called when entering the showAliveStmt production.
 	EnterShowAliveStmt(c *ShowAliveStmtContext)
 
-	// EnterShowReplicationStmt is called when entering the showReplicationStmt production.
-	EnterShowReplicationStmt(c *ShowReplicationStmtContext)
+	// EnterShowReplicationsStmt is called when entering the showReplicationsStmt production.
+	EnterShowReplicationsStmt(c *ShowReplicationsStmtContext)
 
-	// EnterShowMemoryDatabaseStmt is called when entering the showMemoryDatabaseStmt production.
-	EnterShowMemoryDatabaseStmt(c *ShowMemoryDatabaseStmtContext)
-
-	// EnterShowRootMetricStmt is called when entering the showRootMetricStmt production.
-	EnterShowRootMetricStmt(c *ShowRootMetricStmtContext)
-
-	// EnterShowBrokerMetricStmt is called when entering the showBrokerMetricStmt production.
-	EnterShowBrokerMetricStmt(c *ShowBrokerMetricStmtContext)
-
-	// EnterShowStorageMetricStmt is called when entering the showStorageMetricStmt production.
-	EnterShowStorageMetricStmt(c *ShowStorageMetricStmtContext)
-
-	// EnterCreateStorageStmt is called when entering the createStorageStmt production.
-	EnterCreateStorageStmt(c *CreateStorageStmtContext)
-
-	// EnterCreateBrokerStmt is called when entering the createBrokerStmt production.
-	EnterCreateBrokerStmt(c *CreateBrokerStmtContext)
-
-	// EnterRecoverStorageStmt is called when entering the recoverStorageStmt production.
-	EnterRecoverStorageStmt(c *RecoverStorageStmtContext)
-
-	// EnterShowSchemasStmt is called when entering the showSchemasStmt production.
-	EnterShowSchemasStmt(c *ShowSchemasStmtContext)
+	// EnterShowStateStmt is called when entering the showStateStmt production.
+	EnterShowStateStmt(c *ShowStateStmtContext)
 
 	// EnterCreateDatabaseStmt is called when entering the createDatabaseStmt production.
 	EnterCreateDatabaseStmt(c *CreateDatabaseStmtContext)
@@ -102,11 +55,14 @@ type SQLListener interface {
 	// EnterDropDatabaseStmt is called when entering the dropDatabaseStmt production.
 	EnterDropDatabaseStmt(c *DropDatabaseStmtContext)
 
-	// EnterShowDatabaseStmt is called when entering the showDatabaseStmt production.
-	EnterShowDatabaseStmt(c *ShowDatabaseStmtContext)
+	// EnterShowDatabasesStmt is called when entering the showDatabasesStmt production.
+	EnterShowDatabasesStmt(c *ShowDatabasesStmtContext)
 
-	// EnterShowNameSpacesStmt is called when entering the showNameSpacesStmt production.
-	EnterShowNameSpacesStmt(c *ShowNameSpacesStmtContext)
+	// EnterCreateBrokerStmt is called when entering the createBrokerStmt production.
+	EnterCreateBrokerStmt(c *CreateBrokerStmtContext)
+
+	// EnterShowNamespacesStmt is called when entering the showNamespacesStmt production.
+	EnterShowNamespacesStmt(c *ShowNamespacesStmtContext)
 
 	// EnterShowMetricsStmt is called when entering the showMetricsStmt production.
 	EnterShowMetricsStmt(c *ShowMetricsStmtContext)
@@ -119,45 +75,6 @@ type SQLListener interface {
 
 	// EnterShowTagValuesStmt is called when entering the showTagValuesStmt production.
 	EnterShowTagValuesStmt(c *ShowTagValuesStmtContext)
-
-	// EnterPrefix is called when entering the prefix production.
-	EnterPrefix(c *PrefixContext)
-
-	// EnterWithTagKey is called when entering the withTagKey production.
-	EnterWithTagKey(c *WithTagKeyContext)
-
-	// EnterNamespace is called when entering the namespace production.
-	EnterNamespace(c *NamespaceContext)
-
-	// EnterDatabaseName is called when entering the databaseName production.
-	EnterDatabaseName(c *DatabaseNameContext)
-
-	// EnterStorageName is called when entering the storageName production.
-	EnterStorageName(c *StorageNameContext)
-
-	// EnterRequestID is called when entering the requestID production.
-	EnterRequestID(c *RequestIDContext)
-
-	// EnterSource is called when entering the source production.
-	EnterSource(c *SourceContext)
-
-	// EnterOptionClause is called when entering the optionClause production.
-	EnterOptionClause(c *OptionClauseContext)
-
-	// EnterOptionPairs is called when entering the optionPairs production.
-	EnterOptionPairs(c *OptionPairsContext)
-
-	// EnterClosedOptionPairs is called when entering the closedOptionPairs production.
-	EnterClosedOptionPairs(c *ClosedOptionPairsContext)
-
-	// EnterOptionPair is called when entering the optionPair production.
-	EnterOptionPair(c *OptionPairContext)
-
-	// EnterOptionKey is called when entering the optionKey production.
-	EnterOptionKey(c *OptionKeyContext)
-
-	// EnterOptionValue is called when entering the optionValue production.
-	EnterOptionValue(c *OptionValueContext)
 
 	// EnterQueryStmt is called when entering the queryStmt production.
 	EnterQueryStmt(c *QueryStmtContext)
@@ -177,15 +94,6 @@ type SQLListener interface {
 	// EnterAlias is called when entering the alias production.
 	EnterAlias(c *AliasContext)
 
-	// EnterBrokerFilter is called when entering the brokerFilter production.
-	EnterBrokerFilter(c *BrokerFilterContext)
-
-	// EnterDatabaseFilter is called when entering the databaseFilter production.
-	EnterDatabaseFilter(c *DatabaseFilterContext)
-
-	// EnterTypeFilter is called when entering the typeFilter production.
-	EnterTypeFilter(c *TypeFilterContext)
-
 	// EnterFromClause is called when entering the fromClause production.
 	EnterFromClause(c *FromClauseContext)
 
@@ -195,20 +103,11 @@ type SQLListener interface {
 	// EnterConditionExpr is called when entering the conditionExpr production.
 	EnterConditionExpr(c *ConditionExprContext)
 
-	// EnterTagFilterExpr is called when entering the tagFilterExpr production.
-	EnterTagFilterExpr(c *TagFilterExprContext)
+	// EnterExpression is called when entering the expression production.
+	EnterExpression(c *ExpressionContext)
 
-	// EnterTagValueList is called when entering the tagValueList production.
-	EnterTagValueList(c *TagValueListContext)
-
-	// EnterMetricListFilter is called when entering the metricListFilter production.
-	EnterMetricListFilter(c *MetricListFilterContext)
-
-	// EnterMetricList is called when entering the metricList production.
-	EnterMetricList(c *MetricListContext)
-
-	// EnterTimeRangeExpr is called when entering the timeRangeExpr production.
-	EnterTimeRangeExpr(c *TimeRangeExprContext)
+	// EnterValueList is called when entering the valueList production.
+	EnterValueList(c *ValueListContext)
 
 	// EnterTimeExpr is called when entering the timeExpr production.
 	EnterTimeExpr(c *TimeExprContext)
@@ -285,23 +184,14 @@ type SQLListener interface {
 	// EnterExprAtom is called when entering the exprAtom production.
 	EnterExprAtom(c *ExprAtomContext)
 
-	// EnterIdentFilter is called when entering the identFilter production.
-	EnterIdentFilter(c *IdentFilterContext)
+	// EnterProperties is called when entering the properties production.
+	EnterProperties(c *PropertiesContext)
 
-	// EnterJson is called when entering the json production.
-	EnterJson(c *JsonContext)
+	// EnterPropertyAssignments is called when entering the propertyAssignments production.
+	EnterPropertyAssignments(c *PropertyAssignmentsContext)
 
-	// EnterToml is called when entering the toml production.
-	EnterToml(c *TomlContext)
-
-	// EnterObj is called when entering the obj production.
-	EnterObj(c *ObjContext)
-
-	// EnterPair is called when entering the pair production.
-	EnterPair(c *PairContext)
-
-	// EnterArr is called when entering the arr production.
-	EnterArr(c *ArrContext)
+	// EnterProperty is called when entering the property production.
+	EnterProperty(c *PropertyContext)
 
 	// EnterValue is called when entering the value production.
 	EnterValue(c *ValueContext)
@@ -324,6 +214,24 @@ type SQLListener interface {
 	// EnterTagValue is called when entering the tagValue production.
 	EnterTagValue(c *TagValueContext)
 
+	// EnterPrefix is called when entering the prefix production.
+	EnterPrefix(c *PrefixContext)
+
+	// EnterWithTagKey is called when entering the withTagKey production.
+	EnterWithTagKey(c *WithTagKeyContext)
+
+	// EnterNamespace is called when entering the namespace production.
+	EnterNamespace(c *NamespaceContext)
+
+	// EnterName is called when entering the name production.
+	EnterName(c *NameContext)
+
+	// EnterRequestID is called when entering the requestID production.
+	EnterRequestID(c *RequestIDContext)
+
+	// EnterToml is called when entering the toml production.
+	EnterToml(c *TomlContext)
+
 	// EnterIdent is called when entering the ident production.
 	EnterIdent(c *IdentContext)
 
@@ -345,14 +253,14 @@ type SQLListener interface {
 	// ExitShowMasterStmt is called when exiting the showMasterStmt production.
 	ExitShowMasterStmt(c *ShowMasterStmtContext)
 
+	// ExitShowBrokersStmt is called when exiting the showBrokersStmt production.
+	ExitShowBrokersStmt(c *ShowBrokersStmtContext)
+
 	// ExitShowRequestsStmt is called when exiting the showRequestsStmt production.
 	ExitShowRequestsStmt(c *ShowRequestsStmtContext)
 
-	// ExitShowRequestStmt is called when exiting the showRequestStmt production.
-	ExitShowRequestStmt(c *ShowRequestStmtContext)
-
-	// ExitShowBrokersStmt is called when exiting the showBrokersStmt production.
-	ExitShowBrokersStmt(c *ShowBrokersStmtContext)
+	// ExitRecoverStorageStmt is called when exiting the recoverStorageStmt production.
+	ExitRecoverStorageStmt(c *RecoverStorageStmtContext)
 
 	// ExitShowLimitStmt is called when exiting the showLimitStmt production.
 	ExitShowLimitStmt(c *ShowLimitStmtContext)
@@ -360,47 +268,17 @@ type SQLListener interface {
 	// ExitShowMetadataTypesStmt is called when exiting the showMetadataTypesStmt production.
 	ExitShowMetadataTypesStmt(c *ShowMetadataTypesStmtContext)
 
-	// ExitShowRootMetaStmt is called when exiting the showRootMetaStmt production.
-	ExitShowRootMetaStmt(c *ShowRootMetaStmtContext)
-
-	// ExitShowBrokerMetaStmt is called when exiting the showBrokerMetaStmt production.
-	ExitShowBrokerMetaStmt(c *ShowBrokerMetaStmtContext)
-
-	// ExitShowMasterMetaStmt is called when exiting the showMasterMetaStmt production.
-	ExitShowMasterMetaStmt(c *ShowMasterMetaStmtContext)
-
-	// ExitShowStorageMetaStmt is called when exiting the showStorageMetaStmt production.
-	ExitShowStorageMetaStmt(c *ShowStorageMetaStmtContext)
+	// ExitShowMetadatasStmt is called when exiting the showMetadatasStmt production.
+	ExitShowMetadatasStmt(c *ShowMetadatasStmtContext)
 
 	// ExitShowAliveStmt is called when exiting the showAliveStmt production.
 	ExitShowAliveStmt(c *ShowAliveStmtContext)
 
-	// ExitShowReplicationStmt is called when exiting the showReplicationStmt production.
-	ExitShowReplicationStmt(c *ShowReplicationStmtContext)
+	// ExitShowReplicationsStmt is called when exiting the showReplicationsStmt production.
+	ExitShowReplicationsStmt(c *ShowReplicationsStmtContext)
 
-	// ExitShowMemoryDatabaseStmt is called when exiting the showMemoryDatabaseStmt production.
-	ExitShowMemoryDatabaseStmt(c *ShowMemoryDatabaseStmtContext)
-
-	// ExitShowRootMetricStmt is called when exiting the showRootMetricStmt production.
-	ExitShowRootMetricStmt(c *ShowRootMetricStmtContext)
-
-	// ExitShowBrokerMetricStmt is called when exiting the showBrokerMetricStmt production.
-	ExitShowBrokerMetricStmt(c *ShowBrokerMetricStmtContext)
-
-	// ExitShowStorageMetricStmt is called when exiting the showStorageMetricStmt production.
-	ExitShowStorageMetricStmt(c *ShowStorageMetricStmtContext)
-
-	// ExitCreateStorageStmt is called when exiting the createStorageStmt production.
-	ExitCreateStorageStmt(c *CreateStorageStmtContext)
-
-	// ExitCreateBrokerStmt is called when exiting the createBrokerStmt production.
-	ExitCreateBrokerStmt(c *CreateBrokerStmtContext)
-
-	// ExitRecoverStorageStmt is called when exiting the recoverStorageStmt production.
-	ExitRecoverStorageStmt(c *RecoverStorageStmtContext)
-
-	// ExitShowSchemasStmt is called when exiting the showSchemasStmt production.
-	ExitShowSchemasStmt(c *ShowSchemasStmtContext)
+	// ExitShowStateStmt is called when exiting the showStateStmt production.
+	ExitShowStateStmt(c *ShowStateStmtContext)
 
 	// ExitCreateDatabaseStmt is called when exiting the createDatabaseStmt production.
 	ExitCreateDatabaseStmt(c *CreateDatabaseStmtContext)
@@ -408,11 +286,14 @@ type SQLListener interface {
 	// ExitDropDatabaseStmt is called when exiting the dropDatabaseStmt production.
 	ExitDropDatabaseStmt(c *DropDatabaseStmtContext)
 
-	// ExitShowDatabaseStmt is called when exiting the showDatabaseStmt production.
-	ExitShowDatabaseStmt(c *ShowDatabaseStmtContext)
+	// ExitShowDatabasesStmt is called when exiting the showDatabasesStmt production.
+	ExitShowDatabasesStmt(c *ShowDatabasesStmtContext)
 
-	// ExitShowNameSpacesStmt is called when exiting the showNameSpacesStmt production.
-	ExitShowNameSpacesStmt(c *ShowNameSpacesStmtContext)
+	// ExitCreateBrokerStmt is called when exiting the createBrokerStmt production.
+	ExitCreateBrokerStmt(c *CreateBrokerStmtContext)
+
+	// ExitShowNamespacesStmt is called when exiting the showNamespacesStmt production.
+	ExitShowNamespacesStmt(c *ShowNamespacesStmtContext)
 
 	// ExitShowMetricsStmt is called when exiting the showMetricsStmt production.
 	ExitShowMetricsStmt(c *ShowMetricsStmtContext)
@@ -425,45 +306,6 @@ type SQLListener interface {
 
 	// ExitShowTagValuesStmt is called when exiting the showTagValuesStmt production.
 	ExitShowTagValuesStmt(c *ShowTagValuesStmtContext)
-
-	// ExitPrefix is called when exiting the prefix production.
-	ExitPrefix(c *PrefixContext)
-
-	// ExitWithTagKey is called when exiting the withTagKey production.
-	ExitWithTagKey(c *WithTagKeyContext)
-
-	// ExitNamespace is called when exiting the namespace production.
-	ExitNamespace(c *NamespaceContext)
-
-	// ExitDatabaseName is called when exiting the databaseName production.
-	ExitDatabaseName(c *DatabaseNameContext)
-
-	// ExitStorageName is called when exiting the storageName production.
-	ExitStorageName(c *StorageNameContext)
-
-	// ExitRequestID is called when exiting the requestID production.
-	ExitRequestID(c *RequestIDContext)
-
-	// ExitSource is called when exiting the source production.
-	ExitSource(c *SourceContext)
-
-	// ExitOptionClause is called when exiting the optionClause production.
-	ExitOptionClause(c *OptionClauseContext)
-
-	// ExitOptionPairs is called when exiting the optionPairs production.
-	ExitOptionPairs(c *OptionPairsContext)
-
-	// ExitClosedOptionPairs is called when exiting the closedOptionPairs production.
-	ExitClosedOptionPairs(c *ClosedOptionPairsContext)
-
-	// ExitOptionPair is called when exiting the optionPair production.
-	ExitOptionPair(c *OptionPairContext)
-
-	// ExitOptionKey is called when exiting the optionKey production.
-	ExitOptionKey(c *OptionKeyContext)
-
-	// ExitOptionValue is called when exiting the optionValue production.
-	ExitOptionValue(c *OptionValueContext)
 
 	// ExitQueryStmt is called when exiting the queryStmt production.
 	ExitQueryStmt(c *QueryStmtContext)
@@ -483,15 +325,6 @@ type SQLListener interface {
 	// ExitAlias is called when exiting the alias production.
 	ExitAlias(c *AliasContext)
 
-	// ExitBrokerFilter is called when exiting the brokerFilter production.
-	ExitBrokerFilter(c *BrokerFilterContext)
-
-	// ExitDatabaseFilter is called when exiting the databaseFilter production.
-	ExitDatabaseFilter(c *DatabaseFilterContext)
-
-	// ExitTypeFilter is called when exiting the typeFilter production.
-	ExitTypeFilter(c *TypeFilterContext)
-
 	// ExitFromClause is called when exiting the fromClause production.
 	ExitFromClause(c *FromClauseContext)
 
@@ -501,20 +334,11 @@ type SQLListener interface {
 	// ExitConditionExpr is called when exiting the conditionExpr production.
 	ExitConditionExpr(c *ConditionExprContext)
 
-	// ExitTagFilterExpr is called when exiting the tagFilterExpr production.
-	ExitTagFilterExpr(c *TagFilterExprContext)
+	// ExitExpression is called when exiting the expression production.
+	ExitExpression(c *ExpressionContext)
 
-	// ExitTagValueList is called when exiting the tagValueList production.
-	ExitTagValueList(c *TagValueListContext)
-
-	// ExitMetricListFilter is called when exiting the metricListFilter production.
-	ExitMetricListFilter(c *MetricListFilterContext)
-
-	// ExitMetricList is called when exiting the metricList production.
-	ExitMetricList(c *MetricListContext)
-
-	// ExitTimeRangeExpr is called when exiting the timeRangeExpr production.
-	ExitTimeRangeExpr(c *TimeRangeExprContext)
+	// ExitValueList is called when exiting the valueList production.
+	ExitValueList(c *ValueListContext)
 
 	// ExitTimeExpr is called when exiting the timeExpr production.
 	ExitTimeExpr(c *TimeExprContext)
@@ -591,23 +415,14 @@ type SQLListener interface {
 	// ExitExprAtom is called when exiting the exprAtom production.
 	ExitExprAtom(c *ExprAtomContext)
 
-	// ExitIdentFilter is called when exiting the identFilter production.
-	ExitIdentFilter(c *IdentFilterContext)
+	// ExitProperties is called when exiting the properties production.
+	ExitProperties(c *PropertiesContext)
 
-	// ExitJson is called when exiting the json production.
-	ExitJson(c *JsonContext)
+	// ExitPropertyAssignments is called when exiting the propertyAssignments production.
+	ExitPropertyAssignments(c *PropertyAssignmentsContext)
 
-	// ExitToml is called when exiting the toml production.
-	ExitToml(c *TomlContext)
-
-	// ExitObj is called when exiting the obj production.
-	ExitObj(c *ObjContext)
-
-	// ExitPair is called when exiting the pair production.
-	ExitPair(c *PairContext)
-
-	// ExitArr is called when exiting the arr production.
-	ExitArr(c *ArrContext)
+	// ExitProperty is called when exiting the property production.
+	ExitProperty(c *PropertyContext)
 
 	// ExitValue is called when exiting the value production.
 	ExitValue(c *ValueContext)
@@ -629,6 +444,24 @@ type SQLListener interface {
 
 	// ExitTagValue is called when exiting the tagValue production.
 	ExitTagValue(c *TagValueContext)
+
+	// ExitPrefix is called when exiting the prefix production.
+	ExitPrefix(c *PrefixContext)
+
+	// ExitWithTagKey is called when exiting the withTagKey production.
+	ExitWithTagKey(c *WithTagKeyContext)
+
+	// ExitNamespace is called when exiting the namespace production.
+	ExitNamespace(c *NamespaceContext)
+
+	// ExitName is called when exiting the name production.
+	ExitName(c *NameContext)
+
+	// ExitRequestID is called when exiting the requestID production.
+	ExitRequestID(c *RequestIDContext)
+
+	// ExitToml is called when exiting the toml production.
+	ExitToml(c *TomlContext)
 
 	// ExitIdent is called when exiting the ident production.
 	ExitIdent(c *IdentContext)

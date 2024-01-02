@@ -52,44 +52,9 @@ func (l *listener) EnterShowRequestsStmt(_ *grammar.ShowRequestsStmtContext) {
 	l.requestStmt = newRequestStmtParse()
 }
 
-// EnterShowRequestStmt is called when production showRequestStmt is entered.
-func (l *listener) EnterShowRequestStmt(_ *grammar.ShowRequestStmtContext) {
-	l.requestStmt = newRequestStmtParse()
-}
-
 // EnterRequestID is called when production requestID is entered.
 func (l *listener) EnterRequestID(ctx *grammar.RequestIDContext) {
 	l.requestStmt.visitRequestID(ctx)
-}
-
-// EnterShowRootMetaStmt is called when production showRootMetaStmt is entered.
-func (l *listener) EnterShowRootMetaStmt(_ *grammar.ShowRootMetaStmtContext) {
-	l.metadataStmt = newMetadataStmtParser(stmt.RootMetadata)
-}
-
-// EnterShowBrokerMetaStmt is called when production showBrokerMetaStmt is entered.
-func (l *listener) EnterShowBrokerMetaStmt(_ *grammar.ShowBrokerMetaStmtContext) {
-	l.metadataStmt = newMetadataStmtParser(stmt.BrokerMetadata)
-}
-
-// EnterShowMasterMetaStmt is called when production showMasterMetaStmt is entered.
-func (l *listener) EnterShowMasterMetaStmt(_ *grammar.ShowMasterMetaStmtContext) {
-	l.metadataStmt = newMetadataStmtParser(stmt.MasterMetadata)
-}
-
-// EnterShowStorageMetaStmt is called when production showStorageMetaStmt is entered.
-func (l *listener) EnterShowStorageMetaStmt(_ *grammar.ShowStorageMetaStmtContext) {
-	l.metadataStmt = newMetadataStmtParser(stmt.StorageMetadata)
-}
-
-// EnterSource is called when production source is entered.
-func (l *listener) EnterSource(ctx *grammar.SourceContext) {
-	l.metadataStmt.visitSource(ctx)
-}
-
-// EnterTypeFilter is called when production typeFilter is entered.
-func (l *listener) EnterTypeFilter(ctx *grammar.TypeFilterContext) {
-	l.metadataStmt.visitTypeFilter(ctx)
 }
 
 // EnterShowMasterStmt is called when production showMasterStmt is entered.
@@ -109,49 +74,9 @@ func (l *listener) EnterShowAliveStmt(ctx *grammar.ShowAliveStmtContext) {
 	}
 }
 
-// EnterShowBrokerMetricStmt is called when production showBrokerMetricStmt is entered.
-func (l *listener) EnterShowBrokerMetricStmt(_ *grammar.ShowBrokerMetricStmtContext) {
-	l.stateStmt = newStateStmtParse(stmt.BrokerMetric)
-}
-
-// EnterShowRootMetricStmt is called when production showRootMetricStmt is entered.
-func (l *listener) EnterShowRootMetricStmt(_ *grammar.ShowRootMetricStmtContext) {
-	l.stateStmt = newStateStmtParse(stmt.RootMetric)
-}
-
-// EnterShowStorageMetricStmt is called when production showStorageMetricStmt is entered.
-func (l *listener) EnterShowStorageMetricStmt(_ *grammar.ShowStorageMetricStmtContext) {
-	l.stateStmt = newStateStmtParse(stmt.StorageMetric)
-}
-
-// EnterMetricList is called when production metricList is entered.
-func (l *listener) EnterMetricList(ctx *grammar.MetricListContext) {
-	l.stateStmt.visitMetricList(ctx)
-}
-
-// EnterShowReplicationStmt is called when production showReplicationStmt is entered.
-func (l *listener) EnterShowReplicationStmt(_ *grammar.ShowReplicationStmtContext) {
-	l.stateStmt = newStateStmtParse(stmt.Replication)
-}
-
-// EnterShowMemoryDatabaseStmt is called when production showMemoryDatabaseStmt is entered.
-func (l *listener) EnterShowMemoryDatabaseStmt(_ *grammar.ShowMemoryDatabaseStmtContext) {
-	l.stateStmt = newStateStmtParse(stmt.MemoryDatabase)
-}
-
 // EnterRecoverStorageStmt is called when entering the recoverStorageStmt production.
 func (l *listener) EnterRecoverStorageStmt(_ *grammar.RecoverStorageStmtContext) {
 	l.storageStmt = newStorageStmtParse(stmt.StorageOpRecover)
-}
-
-// EnterStorageName is called when entering the storageName production.
-func (l *listener) EnterStorageName(c *grammar.StorageNameContext) {
-	l.storageStmt.visitStorageName(c)
-}
-
-// EnterBrokerFilter is called when production brokerFilter is entered.
-func (l *listener) EnterBrokerFilter(ctx *grammar.BrokerFilterContext) {
-	l.metadataStmt.visitBrokerFilter(ctx)
 }
 
 // EnterDatabaseFilter is called when production databaseFilter is entered.
@@ -162,18 +87,6 @@ func (l *listener) EnterDatabaseFilter(ctx *grammar.DatabaseFilterContext) {
 // EnterShowBrokersStmt is called when production showBrokersStmt is entered.
 func (l *listener) EnterShowBrokersStmt(_ *grammar.ShowBrokersStmtContext) {
 	l.brokerStmt = newBrokerStmtParse(stmt.BrokerOpShow)
-}
-
-// EnterJson is called when production json is entered.
-func (l *listener) EnterJson(ctx *grammar.JsonContext) { //nolint:stylecheck
-	switch {
-	case l.storageStmt != nil:
-		l.storageStmt.visitCfg(ctx)
-	case l.schemasStmt != nil:
-		l.schemasStmt.visitCfg(ctx)
-	case l.brokerStmt != nil:
-		l.brokerStmt.visitCfg(ctx)
-	}
 }
 
 // EnterOptionClause is called when production optionClause is entered.
@@ -191,11 +104,6 @@ func (l *listener) EnterCreateBrokerStmt(c *grammar.CreateBrokerStmtContext) {
 // EnterCreateDatabaseStmt is called when entering the createDatabaseStmt production.
 func (l *listener) EnterCreateDatabaseStmt(_ *grammar.CreateDatabaseStmtContext) {
 	l.schemasStmt = newSchemasStmtParse(stmt.CreateDatabaseSchemaType)
-}
-
-// EnterShowSchemasStmt is called when production showSchemasStmt is entered.
-func (l *listener) EnterShowSchemasStmt(_ *grammar.ShowSchemasStmtContext) {
-	l.schemasStmt = newSchemasStmtParse(stmt.DatabaseSchemaType)
 }
 
 // EnterDropDatabaseStmt is called when production dropDatabaseStmt is entered.
@@ -226,12 +134,12 @@ func (l *listener) EnterUseStmt(ctx *grammar.UseStmtContext) {
 }
 
 // EnterShowDatabaseStmt is called when production showDatabaseStmt is entered.
-func (l *listener) EnterShowDatabaseStmt(_ *grammar.ShowDatabaseStmtContext) {
+func (l *listener) EnterShowDatabasesStmt(_ *grammar.ShowDatabasesStmtContext) {
 	l.schemasStmt = newSchemasStmtParse(stmt.DatabaseNameSchemaType)
 }
 
 // EnterShowNameSpacesStmt is called when production showNameSpacesStmt is entered.
-func (l *listener) EnterShowNameSpacesStmt(_ *grammar.ShowNameSpacesStmtContext) {
+func (l *listener) EnterShowNamespacesStmt(_ *grammar.ShowNamespacesStmtContext) {
 	l.metricMetadataStmt = newMetricMetadataStmtParser(stmt.Namespace)
 }
 
@@ -356,22 +264,30 @@ func (l *listener) EnterLimitClause(ctx *grammar.LimitClauseContext) {
 }
 
 // EnterTagFilterExpr is called when production tagFilterExpr is entered.
-func (l *listener) EnterTagFilterExpr(ctx *grammar.TagFilterExprContext) {
+func (l *listener) EnterExpression(ctx *grammar.ExpressionContext) {
 	switch {
+	case l.stateStmt != nil:
+		l.stateStmt.visitExpression(ctx)
+	case l.metadataStmt != nil:
+		l.metadataStmt.visitExpression(ctx)
 	case l.queryStmt != nil:
-		l.queryStmt.visitTagFilterExpr(ctx)
+		l.queryStmt.visitExpression(ctx)
 	case l.metricMetadataStmt != nil:
-		l.metricMetadataStmt.visitTagFilterExpr(ctx)
+		l.metricMetadataStmt.visitExpression(ctx)
 	}
 }
 
 // ExitTagFilterExpr is called when production tagValueList is exited.
-func (l *listener) ExitTagFilterExpr(_ *grammar.TagFilterExprContext) {
+func (l *listener) ExitExpression(_ *grammar.ExpressionContext) {
 	switch {
+	case l.stateStmt != nil:
+		l.stateStmt.completeExpression()
+	case l.metadataStmt != nil:
+		l.metadataStmt.completeExpression()
 	case l.queryStmt != nil:
-		l.queryStmt.completeTagFilterExpr()
+		l.queryStmt.completeExpression()
 	case l.metricMetadataStmt != nil:
-		l.metricMetadataStmt.completeTagFilterExpr()
+		l.metricMetadataStmt.completeExpression()
 	}
 }
 
