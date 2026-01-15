@@ -143,6 +143,7 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 	groupByKeysLength := len(groupByKeys)
 	fieldsMap := make(map[string]struct{})
 	seriesMap := make(map[string]*commonmodels.Series)
+	exemplarsMap := make(map[string]map[string]map[int64][]*commonmodels.Exemplar)
 	timeRange := ctx.timeRange
 	interval := ctx.interval
 	if ctx.groupAgg != nil {
@@ -173,10 +174,9 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 				}
 			}
 			timeSeries := commonmodels.NewSeries(tags, tagValues)
-			//TODO: modify it
-			timeSeries.Exemplars = expression.Exemplars()
+			// store exemplars temporarily, will be set only on series that pass order by/limit
+			exemplarsMap[tagValues] = expression.Exemplars()
 
-			resultSet.AddSeries(timeSeries)
 			seriesMap[tagValues] = timeSeries
 
 			// result order by/limit
@@ -205,6 +205,12 @@ func (ctx *RootMetricContext) makeResultSet() (resultSet *commonmodels.ResultSet
 				timeSeries.AddField(fieldName, points)
 				fieldsMap[fieldName] = struct{}{}
 			}
+			// set exemplars only for series that passed order by/limit
+			if exemplars, ok := exemplarsMap[tagValues]; ok && len(exemplars) > 0 {
+				timeSeries.Exemplars = exemplars
+			}
+			// add series to result set only after it passed order by/limit
+			resultSet.AddSeries(timeSeries)
 		}
 	}
 
